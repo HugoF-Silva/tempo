@@ -11,7 +11,7 @@ const riskColors = [
   { value: "r", label: "Red" },
 ];
 
-function App() {
+function AppFunc() {
   const [tab, setTab] = useState("register");
   // Register unit state
   const [unitName, setUnitName] = useState("");
@@ -227,4 +227,4 @@ function App() {
   );
 }
 
-export default App;
+export default AppFunc;
