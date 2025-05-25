@@ -13,6 +13,16 @@ app = FastAPI()
 datastore = DataStore()
 estimator = WaitTimeEstimator(datastore)
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or put your frontend domain here for production
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/health", response_model=HealthCheckResponse)
 def health():
     return HealthCheckResponse(status="ok")
