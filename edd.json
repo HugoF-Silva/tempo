@@ -1,0 +1,149 @@
+[
+    {
+        "place_id": 10498610,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 142612491,
+        "lat": "-16.7139324",
+        "lon": "-49.2379606",
+        "class": "highway",
+        "type": "residential",
+        "place_rank": 26,
+        "importance": 0.05339994125276566,
+        "addresstype": "road",
+        "name": "Rua Natal",
+        "display_name": "Rua Natal, Bairro Alto da Glória, Goiânia, Região Geográfica Imediata de Goiânia, Região Geográfica Intermediária de Goiânia, Goiás, Região Centro-Oeste, 74815-745, Brasil",
+        "boundingbox": [
+            "-16.7151158",
+            "-16.7127683",
+            "-49.2395034",
+            "-49.2364324"
+        ]
+    },
+    {
+        "place_id": 10509118,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 441492388,
+        "lat": "-16.6507398",
+        "lon": "-49.3105246",
+        "class": "highway",
+        "type": "residential",
+        "place_rank": 26,
+        "importance": 0.05339994125276566,
+        "addresstype": "road",
+        "name": "Rua Natal",
+        "display_name": "Rua Natal, Vila João Vaz, Goiânia, Região Geográfica Imediata de Goiânia, Região Geográfica Intermediária de Goiânia, Goiás, Região Centro-Oeste, 74445-260, Brasil",
+        "boundingbox": [
+            "-16.6527542",
+            "-16.6487330",
+            "-49.3110160",
+            "-49.3100071"
+        ]
+    },
+    {
+        "place_id": 10531480,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 304607979,
+        "lat": "-16.5746378",
+        "lon": "-49.2759677",
+        "class": "highway",
+        "type": "residential",
+        "place_rank": 26,
+        "importance": 0.05339994125276566,
+        "addresstype": "road",
+        "name": "Rua Natal",
+        "display_name": "Rua Natal, Residencial Privé Itanhangá, Goiânia, Região Geográfica Imediata de Goiânia, Região Geográfica Intermediária de Goiânia, Goiás, Região Centro-Oeste, 74691-210, Brasil",
+        "boundingbox": [
+            "-16.5753749",
+            "-16.5739008",
+            "-49.2764612",
+            "-49.2754743"
+        ]
+    },
+    {
+        "place_id": 10490839,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 128984256,
+        "lat": "-16.6381887",
+        "lon": "-49.2784514",
+        "class": "highway",
+        "type": "residential",
+        "place_rank": 26,
+        "importance": 0.05339994125276566,
+        "addresstype": "road",
+        "name": "Rua Natal",
+        "display_name": "Rua Natal, Setor Urias Magalhães, Goiânia, Região Geográfica Imediata de Goiânia, Região Geográfica Intermediária de Goiânia, Goiás, Região Centro-Oeste, 74565-100, Brasil",
+        "boundingbox": [
+            "-16.6396627",
+            "-16.6367147",
+            "-49.2786838",
+            "-49.2782189"
+        ]
+    },
+    {
+        "place_id": 10502534,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 160418009,
+        "lat": "-16.6580675",
+        "lon": "-49.2752855",
+        "class": "highway",
+        "type": "residential",
+        "place_rank": 26,
+        "importance": 0.05339994125276566,
+        "addresstype": "road",
+        "name": "Rua Natal",
+        "display_name": "Rua Natal, Jardim das Esmeraldas, Goiânia, Região Geográfica Imediata de Goiânia, Região Geográfica Intermediária de Goiânia, Goiás, Região Centro-Oeste, 74560-390, Brasil",
+        "boundingbox": [
+            "-16.6585296",
+            "-16.6576054",
+            "-49.2756208",
+            "-49.2749502"
+        ]
+    },
+    {
+        "place_id": 10520588,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 376296922,
+        "lat": "-16.6272554",
+        "lon": "-49.2215136",
+        "class": "highway",
+        "type": "residential",
+        "place_rank": 26,
+        "importance": 0.05339994125276566,
+        "addresstype": "road",
+        "name": "Rua Natal",
+        "display_name": "Rua Natal, Vila Militar, Goiânia, Região Geográfica Imediata de Goiânia, Região Geográfica Intermediária de Goiânia, Goiás, Região Centro-Oeste, 74672-400, Brasil",
+        "boundingbox": [
+            "-16.6277140",
+            "-16.6267969",
+            "-49.2216637",
+            "-49.2213636"
+        ]
+    },
+    {
+        "place_id": 10484248,
+        "licence": "Data © OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+        "osm_type": "way",
+        "osm_id": 1178589467,
+        "lat": "-16.7127074",
+        "lon": "-49.2395925",
+        "class": "highway",
+        "type": "residential",
+        "place_rank": 26,
+        "importance": 0.05339994125276566,
+        "addresstype": "road",
+        "name": "Rua Natal",
+        "display_name": "Rua Natal, Bairro Alto da Glória, Goiânia, Região Geográfica Imediata de Goiânia, Região Geográfica Intermediária de Goiânia, Goiás, Região Centro-Oeste, 74815-715, Brasil",
+        "boundingbox": [
+            "-16.7127683",
+            "-16.7126465",
+            "-49.2396817",
+            "-49.2395034"
+        ]
+    }
+]

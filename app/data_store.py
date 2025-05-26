@@ -5,7 +5,7 @@ from config import RISK_COLORS, MAX_WAIT_MINUTES, MIN_WAIT_MINUTES, TIME_SLOTS, 
 from utils import assign_time_slot, compute_iqr
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
-
+from decimal import Decimal
 
 class DataStore:
     def __init__(self):
@@ -117,18 +117,20 @@ class DataStore:
         units = set(item['unit'] for item in items)
         return list(units)
     
+
     def register_unit(self, unit, address=None, postal_code=None, latitude=None, longitude=None):
-        # If latitude/longitude not given but address/CEP is, use geocoding (for now, assume lat/lng given)
         item = {"unit": unit}
-        if latitude and longitude:
-            item["lat"] = latitude
-            item["lng"] = longitude
+        if latitude is not None and longitude is not None:
+            # Convert float to Decimal!
+            item["lat"] = Decimal(str(latitude))
+            item["lng"] = Decimal(str(longitude))
         if address:
             item["address"] = address
         if postal_code:
             item["postal_code"] = postal_code
         self.units_table.put_item(Item=item)
         return item
+
 
     def get_all_units_with_locations(self):
         response = self.units_table.scan()

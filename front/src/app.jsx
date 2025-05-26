@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 // Set your API base URL here:
-const API_URL = "http://wait-time-alb-1848481545.us-east-1.elb.amazonaws.com"; // e.g., http://localhost:8080
+const API_URL = "https://api.mttvps.shop"; // e.g., http://localhost:8080
 
 const riskColors = [
   { value: "b", label: "Blue" },
