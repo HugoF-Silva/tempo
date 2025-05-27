@@ -1,5 +1,5 @@
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
 from config import RISK_COLORS, MAX_WAIT_MINUTES, MIN_WAIT_MINUTES, TIME_SLOTS, DYNAMODB_TABLE, AWS_REGION
 from utils import assign_time_slot, compute_iqr
@@ -144,9 +144,9 @@ class DataStore:
                     "user_phone": user_phone,
                     "unit": r["unit"],
                     "travel_time_min": r["travel_time_min"],
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "latitude": Decimal(str(latitude)),
+                    "longitude": Decimal(str(longitude)),
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 })
 
     def get_user_route_times(self, user_phone):

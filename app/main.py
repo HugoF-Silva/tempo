@@ -134,3 +134,8 @@ def get_user_route_times(user_phone: str):
         user_phone=user_phone,
         results=results
     )
+
+@app.get("/units")
+def list_units():
+    items = datastore.get_all_units_with_locations()
+    return {"units": [{"unit": i["unit"]} for i in items if "unit" in i]}
