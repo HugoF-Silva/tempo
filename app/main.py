@@ -18,10 +18,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or put your frontend domain here for production
+    allow_origins=[
+        "https://tempo-flax-kappa.vercel.app",   # Your Vercel app
+        "https://n8n.mttvps.shop",            # Your n8n cloud/server
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 @app.get("/health", response_model=HealthCheckResponse)
