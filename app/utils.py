@@ -2,7 +2,9 @@ from datetime import datetime, time, timedelta
 import numpy as np
 from typing import List, Tuple, Optional
 from WazeRouteCalculator import WazeRouteCalculator
-
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def assign_time_slot(ts: datetime, slots: List[Tuple[str, str]]) -> str:
     t = ts.time()
@@ -11,6 +13,7 @@ def assign_time_slot(ts: datetime, slots: List[Tuple[str, str]]) -> str:
         end = datetime.strptime(end_str, "%H:%M").time()
         if start <= t < end:
             return f"{start_str}-{end_str}"
+    logger.info("OFF")
     return "off-hours"
 
 def rolling_window_bounds(query_time: datetime, window_minutes: int) -> Tuple[datetime, datetime]:

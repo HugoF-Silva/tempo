@@ -104,7 +104,9 @@ function AppFunc() {
       unit: selectedUnit,
       event_type: eventType,
       risk_color: eventType === "rc" ? riskColor : undefined,
-      timestamp: timestamp || new Date().toISOString(),
+      timestamp: timestamp
+      ? new Date(timestamp).toISOString()
+      : new Date().toISOString(),
     };
     try {
       const res = await fetch(`${API_URL}/annotate`, {

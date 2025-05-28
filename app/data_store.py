@@ -1,7 +1,7 @@
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
-from config import RISK_COLORS, MAX_WAIT_MINUTES, MIN_WAIT_MINUTES, TIME_SLOTS, DYNAMODB_TABLE, AWS_REGION
+from config import RISK_COLORS, MAX_WAIT_MINUTES, MIN_WAIT_MINUTES, TIME_SLOTS, DYNAMODB_TABLE, AWS_REGION, DEFAULT_WAIT_BY_COLOR
 from utils import assign_time_slot, compute_iqr
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
@@ -12,6 +12,10 @@ import os
 from dateutil import parser
 import pytz
 import json
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 def get_secret():
 
     secret_name = "pseodonym/salt"
@@ -52,49 +56,78 @@ class DataStore:
         self.units_table = self.dynamodb.Table("units")
         self.table = self.dynamodb.Table(DYNAMODB_TABLE)
         self.user_route_table = self.dynamodb.Table("user_route_times")
-        # Temporary buffer for cinza events
-        self.cinza_buffer = {}  # pseudonym -> {unit, cinza_time}
         self.secret = get_secret()
 
     def ingest_event(self, pseudonym: str, unit: str, event_type: str,
-                     risk_color: Optional[str], timestamp: datetime):
+                    risk_color: Optional[str], timestamp: datetime):
         timestamp_str = timestamp.isoformat()
+        hashed_pseudonym = hash_pseudonym(pseudonym, self.secret)
+
+        response = self.table.query(
+                KeyConditionExpression=Key("pseudonym").eq(hashed_pseudonym),
+                FilterExpression=Attr("unit").eq(unit),
+                ScanIndexForward=False,  # Most recent first
+            )
+
+
+        items = response.get("Items", [])
+
         if event_type == "cinza":
-            # Store cinza in-memory (could also persist if needed)
-            self.cinza_buffer[pseudonym] = {"unit": unit, "cinza_time": timestamp}
-            # Also write to DynamoDB for durability if desired (optional)
+            if items:
+                for item in items:
+                    self.table.delete_item(
+                        Key={
+                            "pseudonym": hashed_pseudonym,
+                            "event_time": item["event_time"]
+                        }
+                    )
+
+            # Persist cinza event
+            item = {
+                "pseudonym": hashed_pseudonym,
+                "unit": unit,
+                "cinza_time": timestamp_str,
+                "event_time": timestamp_str,
+                "event_type": "cinza"
+            }
+            self.table.put_item(Item=item)
             return None
+        
         elif event_type == "rc":
-            # Match with buffered cinza
-            if pseudonym not in self.cinza_buffer:
-                return None  # No matching cinza yet
-            cinza_entry = self.cinza_buffer.pop(pseudonym)
-            if not cinza_entry:
-                # Try to retrieve from DynamoDB (not implemented for MVP, but possible)
-                return None
+            # Retrieve last cinza event for this pseudonym/unit
+            response = self.table.query(
+                KeyConditionExpression=Key("pseudonym").eq(hashed_pseudonym),
+                FilterExpression=Attr("event_type").eq("cinza") & Attr("unit").eq(unit),
+                ScanIndexForward=False,  # Most recent first
+                Limit=1
+            )
+            if not items:
+                return None  # No matching cinza
             
-            cinza_time = cinza_entry["cinza_time"]
+            cinza_entry = items[0]
+            cinza_time = datetime.fromisoformat(cinza_entry["cinza_time"])
             delta_t = (timestamp - cinza_time).total_seconds() / 60.0
             if not (MIN_WAIT_MINUTES <= delta_t <= MAX_WAIT_MINUTES):
                 return None  # Outlier or invalid data
 
-            slot = assign_time_slot(timestamp, TIME_SLOTS)
-            item  = {
-                "pseudonym": hash_pseudonym(pseudonym, self.secret),
+            slot = assign_time_slot(timestamp, TIME_SLOTS)  # Can be "off-hours"
+            item = {
+                "pseudonym": hashed_pseudonym,
                 "unit": unit,
+                "event_time": timestamp_str,
                 "cinza_time": cinza_entry["cinza_time"],
                 "rc_time": timestamp_str,
                 "risk_color": risk_color,
-                "delta_t": delta_t,
+                "delta_t": Decimal(str(delta_t)),
                 "slot": slot,
                 "day": timestamp.date().isoformat(),
                 "event_type": "rc"
             }
             self.table.put_item(Item=item)
-            # self.df = pd.concat([self.df, pd.DataFrame([item])], ignore_index=True)
             return delta_t
         else:
             return None
+
 
     def fetch_events(self, unit: str, risk_color: str,
                     time_from: datetime, time_to: datetime,
