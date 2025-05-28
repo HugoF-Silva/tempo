@@ -42,10 +42,11 @@ function AppFunc() {
             }
           );
           if (res.ok) {
-            const data = await res.json();
-            if (data.latitude && data.longitude) {
-              setLat(data.latitude);
-              setLng(data.longitude);
+            const arr = await res.json();
+            // If the response is an array (like you pasted above)
+            if (Array.isArray(arr) && arr.length > 0 && arr[0].latitude && arr[0].longitude) {
+              setLat(arr[0].latitude);
+              setLng(arr[0].longitude);
             }
           }
         } catch (err) {
