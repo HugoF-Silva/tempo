@@ -57,11 +57,6 @@ function AppFunc() {
     fetchCepLatLng();
   }, [postalCode]);
 
-  // Fetch units for annotation select
-  useEffect(() => {
-    fetchUnits();
-  }, [tab]);
-
   const fetchUnits = async () => {
     if (tab === "annotate") {
       try {
