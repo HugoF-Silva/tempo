@@ -100,15 +100,18 @@ def route_times(req: RouteTimeRequest):
     units = datastore.get_all_units_with_locations()
     results = []
     for unit_info in units:
+        print(f"NO DUPLICATE -- UNIT NAME: {unit_info.get('unit')}")
         lat, lng = unit_info.get("lat"), unit_info.get("lng")
         if lat is None or lng is None:
             continue
+        print(f"user lat lon: {req.latitude, req.longitude}")
         travel_time = get_route_time(
             req.latitude,
             req.longitude,
             lat,
             lng
         )
+        print(f"travel_time: {travel_time}")
         results.append(
             {
                 "unit": unit_info["unit"],
@@ -125,7 +128,8 @@ def get_user_route_times(user_phone: str):
     results = [
         RouteTimeResult(
             unit=item["unit"],
-            travel_time_min=item["travel_time_min"]
+            travel_time_min=item["travel_time_min"],
+            timestamp=item["timestamp"]
         )
         for item in items
     ]

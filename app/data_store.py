@@ -5,7 +5,42 @@ from config import RISK_COLORS, MAX_WAIT_MINUTES, MIN_WAIT_MINUTES, TIME_SLOTS, 
 from utils import assign_time_slot, compute_iqr
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
+from botocore.exceptions import ClientError
 from decimal import Decimal
+import hashlib
+import os
+from dateutil import parser
+import pytz
+import json
+def get_secret():
+
+    secret_name = "pseodonym/salt"
+    region_name = "us-east-1"
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except ClientError as e:
+        # For a list of exceptions thrown, see
+        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        raise e
+
+    secret = get_secret_value_response['SecretString']
+
+    return secret
+
+def hash_pseudonym(pseudonym: str, salt: str) -> str:
+    # Combine pseudonym and salt, encode, hash
+    to_hash = f"{salt}{pseudonym}".encode("utf-8")
+    return hashlib.sha256(to_hash).hexdigest()
 
 class DataStore:
     def __init__(self):
@@ -19,6 +54,7 @@ class DataStore:
         self.user_route_table = self.dynamodb.Table("user_route_times")
         # Temporary buffer for cinza events
         self.cinza_buffer = {}  # pseudonym -> {unit, cinza_time}
+        self.secret = get_secret()
 
     def ingest_event(self, pseudonym: str, unit: str, event_type: str,
                      risk_color: Optional[str], timestamp: datetime):
@@ -44,7 +80,7 @@ class DataStore:
 
             slot = assign_time_slot(timestamp, TIME_SLOTS)
             item  = {
-                "pseudonym": pseudonym,
+                "pseudonym": hash_pseudonym(pseudonym, self.secret),
                 "unit": unit,
                 "cinza_time": cinza_entry["cinza_time"],
                 "rc_time": timestamp_str,
@@ -69,10 +105,13 @@ class DataStore:
                              Attr('risk_color').eq(risk_color) & 
                              Attr('event_type').eq('rc')
         )
+
         items = response.get('Items', [])
         data = []
         for item in items:
-            rc_time = datetime.fromisoformat(item['rc_time'])
+            rc_time = parser.isoparse(item['rc_time'])
+            if rc_time.tzinfo is None:
+                rc_time = rc_time.replace(tzinfo=pytz.UTC)
             if time_from <= rc_time <= time_to:
                 if days is None or item['day'] in days:
                     data.append(float(item['delta_t']))
@@ -138,12 +177,16 @@ class DataStore:
     
     def store_user_route_times(self, user_phone, latitude, longitude, results):
         # results: list of dicts [{unit, travel_time_min}]
+        print("USER_PHONE:", repr(user_phone))
+        print("Latitude:", latitude, "Longitude:", longitude)
+        print("Will write these units:")
+        print(json.dumps([r["unit"] for r in results], ensure_ascii=False, indent=2))
         with self.user_route_table.batch_writer() as batch:
             for r in results:
                 batch.put_item(Item={
                     "user_phone": user_phone,
                     "unit": r["unit"],
-                    "travel_time_min": r["travel_time_min"],
+                    "travel_time_min": Decimal(str(r["travel_time_min"])) if r["travel_time_min"] is not None else None,
                     "latitude": Decimal(str(latitude)),
                     "longitude": Decimal(str(longitude)),
                     "timestamp": datetime.now(timezone.utc).isoformat()

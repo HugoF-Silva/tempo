@@ -22,12 +22,13 @@ class WaitTimeEstimator:
         # samples = self.datastore.get_samples(unit, risk_color, lower, upper)
         samples = self.datastore.fetch_events(unit, risk_color, lower, upper)
         values = apply_iqr_filter(samples.values, IQR_OUTLIER_FACTOR)
+        if not isinstance(values, (list, np.ndarray)):
+            raise ValueError(f"Expected values to be list/array, got {type(values)}")
         if len(values) >= FINE_GRAINED_MIN_SAMPLES:
-            wait = float(np.median(values))
+            wait = np.median(values)
             iqr = compute_iqr(values)
             confidence, fallback_tier = self.confidence_label(len(values)), "rolling"
             return wait, confidence, len(values), fallback_tier, iqr, None
-
         # TIER 2: Slot-based, now with boundary smoothing
         slot = assign_time_slot(query_time, TIME_SLOTS)
         slot_start, slot_end = slot_boundaries(TIME_SLOTS, slot)
@@ -86,7 +87,7 @@ class WaitTimeEstimator:
         samples = self.datastore.fetch_slot_events(unit, risk_color, slot, query_time.date().isoformat())
         values = apply_iqr_filter(samples.values, IQR_OUTLIER_FACTOR)
         if len(values) >= SLOT_MIN_SAMPLES:
-            wait = float(np.median(values))
+            wait = np.median(values)
             iqr = compute_iqr(values)
             confidence, fallback_tier = self.confidence_label(len(values)), "slot-today"
             return wait, confidence, len(values), fallback_tier, iqr, None
@@ -102,7 +103,7 @@ class WaitTimeEstimator:
                 # Weight: 1 for today, decay for past days
                 weights.extend([MULTI_DAY_DECAY**i]*len(vals))
         if len(all_waits) >= SLOT_MIN_SAMPLES:
-            wait = float(np.median(all_waits))  # Or use weighted median
+            wait = np.median(all_waits)  # Or use weighted median
             iqr = compute_iqr(np.array(all_waits))
             confidence, fallback_tier = self.confidence_label(len(all_waits)), "slot-multiday"
             return wait, confidence, len(all_waits), fallback_tier, iqr, None

@@ -6,10 +6,10 @@ RISK_COLORS = ['b', 'g', 'y', 'o', 'r']
 # Default time slot definitions
 TIME_SLOTS = [
     ("05:00", "08:00"),
-    ("08:00", "11:00"),
-    ("11:30", "14:30"),
+    ("08:00", "11:30"),
+    ("11:30", "15:00"),
     ("15:00", "18:00"),
-    ("18:00", "21:00"),
+    ("18:00", "21:00")
 ]
 
 # Rolling window for fine-grained estimation

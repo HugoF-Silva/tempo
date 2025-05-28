@@ -32,7 +32,7 @@ def compute_iqr(values: np.ndarray) -> float:
 
 def apply_iqr_filter(values: np.ndarray, factor: float = 1.5):
     if len(values) == 0:
-        return 0.0
+        return np.array([])   # not 0.0!
     iqr = compute_iqr(values)
     q1, q3 = np.percentile(values, [25, 75])
     lower = q1 - factor * iqr
@@ -50,6 +50,8 @@ def get_adjacent_slots(slots: List[Tuple[str, str]], slot_label: str) -> Tuple[O
 def slot_boundaries(slots: List[Tuple[str, str]], slot_label: str) -> Tuple[time, time]:
     """Returns (start_time, end_time) for the given slot label."""
     for start_str, end_str in slots:
+        print(f"STRArtstr, end_str: {start_str, end_str}")
+        print(f"SLOT_LABEL: {slot_label}")
         if slot_label == f"{start_str}-{end_str}":
             start = datetime.strptime(start_str, "%H:%M").time()
             end = datetime.strptime(end_str, "%H:%M").time()

@@ -29,6 +29,33 @@ function AppFunc() {
   const [timestamp, setTimestamp] = useState("");
   const [annotateMsg, setAnnotateMsg] = useState("");
 
+  useEffect(() => {
+    const fetchCepLatLng = async () => {
+      if (/^\d{8}$/.test(postalCode)) {
+        try {
+          const res = await fetch(
+            `https://www.cepaberto.com/api/v3/cep?cep=${postalCode}`,
+            {
+              headers: {
+                Authorization: "Token token=bf2a40be4391c25294e40a44317123a7"
+              }
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.latitude && data.longitude) {
+              setLat(data.latitude);
+              setLng(data.longitude);
+            }
+          }
+        } catch (err) {
+          // Optionally handle error
+        }
+      }
+    };
+    fetchCepLatLng();
+  }, [postalCode]);
+
   // Fetch units for annotation select
   useEffect(() => {
     fetchUnits();

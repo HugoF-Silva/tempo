@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, Literal, List
 from datetime import datetime
+from decimal import Decimal
 
 class AnnotateEventRequest(BaseModel):
     pseudonym: str
@@ -58,8 +59,8 @@ class RouteTimeRequest(BaseModel):
 
 class RouteTimeResult(BaseModel):
     unit: str
-    travel_time_min: Optional[float]
-    timestamp: str
+    travel_time_min: Decimal
+    timestamp: Optional[str]
 
 class RouteTimeResponse(BaseModel):
     user_phone: str
