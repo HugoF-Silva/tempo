@@ -85,8 +85,6 @@ function AppFunc() {
       longitude,
     };
 
-    console.log("Registering unit with:", body);
-
     try {
       const res = await fetch(`${API_URL}/register_unit`, {
         method: "POST",
