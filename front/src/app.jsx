@@ -53,10 +53,11 @@ function AppFunc() {
     let longitude = lng ? parseFloat(lng) : undefined;
 
     // If no latitude/longitude but postal code exists, fetch them
-    if ((!latitude || !longitude) && postalCode && /^\d{8}$/.test(postalCode)) {
+    const cleanedCep = postalCode ? postalCode.replace(/\D/g, '') : '';
+    if ((!latitude || !longitude) && cleanedCep.length === 8) {
       try {
         const res = await fetch(
-          `https://www.cepaberto.com/api/v3/cep?cep=${postalCode}`,
+          `https://www.cepaberto.com/api/v3/cep?cep=${cleanedCep}`,
           {
             headers: {
               Authorization: "Token token=bf2a40be4391c25294e40a44317123a7"
@@ -65,6 +66,7 @@ function AppFunc() {
         );
         if (res.ok) {
           const data = await res.json();
+          console.log("CepAberto response:", data);
           if (data.latitude && data.longitude) {
             latitude = parseFloat(data.latitude);
             longitude = parseFloat(data.longitude);
@@ -84,7 +86,7 @@ function AppFunc() {
     };
 
     console.log("Registering unit with:", body);
-    
+
     try {
       const res = await fetch(`${API_URL}/register_unit`, {
         method: "POST",
