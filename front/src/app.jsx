@@ -96,6 +96,12 @@ function AppFunc() {
     }
   };
 
+  function toBrazilIso(datetimeLocalStr) {
+    if (!datetimeLocalStr) return new Date().toISOString();
+    // e.g., "2024-05-30T11:01" -> Date as -03:00
+    return new Date(datetimeLocalStr + ":00-03:00").toISOString();
+  }
+
   const handleAnnotate = async (e) => {
     e.preventDefault();
     setAnnotateMsg("");
@@ -105,8 +111,8 @@ function AppFunc() {
       event_type: eventType,
       risk_color: eventType === "rc" ? riskColor : undefined,
       timestamp: timestamp
-      ? new Date(timestamp).toISOString()
-      : new Date().toISOString(),
+        ? toBrazilIso(timestamp)
+        : new Date().toISOString(),
     };
     try {
       const res = await fetch(`${API_URL}/annotate`, {
