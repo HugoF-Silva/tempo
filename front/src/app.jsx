@@ -29,33 +29,10 @@ function AppFunc() {
   const [timestamp, setTimestamp] = useState("");
   const [annotateMsg, setAnnotateMsg] = useState("");
 
+  // Fetch units for annotation select
   useEffect(() => {
-    const fetchCepLatLng = async () => {
-      if (/^\d{8}$/.test(postalCode)) {
-        try {
-          const res = await fetch(
-            `https://www.cepaberto.com/api/v3/cep?cep=${postalCode}`,
-            {
-              headers: {
-                Authorization: "Token token=bf2a40be4391c25294e40a44317123a7"
-              }
-            }
-          );
-          if (res.ok) {
-            const arr = await res.json();
-            // If the response is an array (like you pasted above)
-            if (Array.isArray(arr) && arr.length > 0 && arr[0].latitude && arr[0].longitude) {
-              setLat(arr[0].latitude);
-              setLng(arr[0].longitude);
-            }
-          }
-        } catch (err) {
-          // Optionally handle error
-        }
-      }
-    };
-    fetchCepLatLng();
-  }, [postalCode]);
+    fetchUnits();
+  }, [tab]);
 
   const fetchUnits = async () => {
     if (tab === "annotate") {
@@ -72,12 +49,38 @@ function AppFunc() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setRegisterMsg("");
+    let latitude = lat ? parseFloat(lat) : undefined;
+    let longitude = lng ? parseFloat(lng) : undefined;
+
+    // If no latitude/longitude but postal code exists, fetch them
+    if ((!latitude || !longitude) && postalCode && /^\d{8}$/.test(postalCode)) {
+      try {
+        const res = await fetch(
+          `https://www.cepaberto.com/api/v3/cep?cep=${postalCode}`,
+          {
+            headers: {
+              Authorization: "Token token=bf2a40be4391c25294e40a44317123a7"
+            }
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.latitude && data.longitude) {
+            latitude = parseFloat(data.latitude);
+            longitude = parseFloat(data.longitude);
+          }
+        }
+      } catch (err) {
+        // Optionally show an error, or continue with empty lat/lng
+      }
+    }
+
     let body = {
       unit: unitName,
       address: address || undefined,
       postal_code: postalCode || undefined,
-      latitude: lat ? parseFloat(lat) : undefined,
-      longitude: lng ? parseFloat(lng) : undefined,
+      latitude,
+      longitude,
     };
     try {
       const res = await fetch(`${API_URL}/register_unit`, {
@@ -96,7 +99,7 @@ function AppFunc() {
       setRegisterMsg("❌ Error: " + err.message);
     }
   };
-
+  
   const handleAnnotate = async (e) => {
     e.preventDefault();
     setAnnotateMsg("");
