@@ -99,7 +99,7 @@ function AppFunc() {
       setRegisterMsg("❌ Error: " + err.message);
     }
   };
-  
+
   const handleAnnotate = async (e) => {
     e.preventDefault();
     setAnnotateMsg("");
