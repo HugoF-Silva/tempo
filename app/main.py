@@ -8,6 +8,7 @@ from data_store import DataStore
 from models import WaitTimeEstimator
 from datetime import datetime, timezone
 from utils import get_route_time
+import requests
 
 app = FastAPI()
 datastore = DataStore()
@@ -143,3 +144,11 @@ def get_user_route_times(user_phone: str):
 def list_units():
     items = datastore.get_all_units_with_locations()
     return {"units": [{"unit": i["unit"]} for i in items if "unit" in i]}
+
+@app.get("/cep_lookup")
+def cep_lookup(cep: str):
+    CEP_ABERTO_TOKEN = "bf2a40be4391c25294e40a44317123a7"
+    url = f"https://www.cepaberto.com/api/v3/cep?cep={cep}"
+    headers = {"Authorization": f"Token token={CEP_ABERTO_TOKEN}"}
+    resp = requests.get(url, headers=headers)
+    return resp.json() 

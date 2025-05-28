@@ -56,14 +56,7 @@ function AppFunc() {
     const cleanedCep = postalCode ? postalCode.replace(/\D/g, '') : '';
     if ((!latitude || !longitude) && cleanedCep.length === 8) {
       try {
-        const res = await fetch(
-          `https://www.cepaberto.com/api/v3/cep?cep=${cleanedCep}`,
-          {
-            headers: {
-              Authorization: "Token token=bf2a40be4391c25294e40a44317123a7"
-            }
-          }
-        );
+        const res = await fetch(`${API_URL}/cep_lookup?cep=${cleanedCep}`);
         if (res.ok) {
           const data = await res.json();
           console.log("CepAberto response:", data);
