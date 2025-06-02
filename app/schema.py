@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Optional, Literal, List
 from datetime import datetime
 from decimal import Decimal
-
+from typing import Union
 class AnnotateEventRequest(BaseModel):
     pseudonym: str
     unit: str
@@ -16,13 +16,8 @@ class EstimateRequest(BaseModel):
     query_time: datetime
 
 class EstimateResponse(BaseModel):
-    estimated_wait: float
-    confidence: str
-    sample_size: int
-    fallback_tier: str
-    iqr: float
-    explanation: Optional[str] = None
-
+    estimated_wait: float | str
+    
 class HealthCheckResponse(BaseModel):
     status: str
 

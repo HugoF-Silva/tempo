@@ -1,124 +1,178 @@
+# models.py
+
 from datetime import datetime, timedelta
 import numpy as np
+from typing import Union
 from config import (
-    ROLLING_WINDOW_MINUTES, FINE_GRAINED_MIN_SAMPLES, SLOT_MIN_SAMPLES, 
-    MULTI_DAY_LOOKBACK_DAYS, MULTI_DAY_DECAY, DEFAULT_WAIT_BY_COLOR,
-    IQR_OUTLIER_FACTOR, HIGH_CONFIDENCE_SAMPLES, MEDIUM_CONFIDENCE_SAMPLES, 
-    TIME_SLOTS, SLOT_BOUNDARY_SMOOTHING_WINDOW_MIN
+    TIME_SLOTS,
+    MIN_WAIT_MINUTES,
+    MAX_WAIT_MINUTES,
+    DEFAULT_WAIT_BY_SLOT_COLOR,
+    SLOT_BOUNDARY_SMOOTHING_WINDOW_MIN,
+    CONCEPT1_MIN_SAMPLES,
+    CONCEPT3_MIN_SAMPLES,
+    TEMPORAL_DECAY_RATE,
+    IQR_OUTLIER_FACTOR
 )
 from utils import (
-    rolling_window_bounds, compute_iqr, apply_iqr_filter, assign_time_slot,
-    get_adjacent_slots, slot_boundaries
+    assign_time_slot,
+    apply_iqr_filter,
+    get_adjacent_slots,
+    slot_boundaries,
+    compute_temporal_weights, 
+    weighted_median, 
 )
 from data_store import DataStore
+import logging
+from zoneinfo import ZoneInfo
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class WaitTimeEstimator:
     def __init__(self, datastore: DataStore):
-        self.datastore = datastore
+        self.ds = datastore
 
-    def estimate_wait_time(self, unit: str, risk_color: str, query_time: datetime):
-        # TIER 1: Fine-grained rolling window
-        lower, upper = rolling_window_bounds(query_time, ROLLING_WINDOW_MINUTES)
-        # samples = self.datastore.get_samples(unit, risk_color, lower, upper)
-        samples = self.datastore.fetch_events(unit, risk_color, lower, upper)
-        values = apply_iqr_filter(samples.values, IQR_OUTLIER_FACTOR)
-        if not isinstance(values, (list, np.ndarray)):
-            raise ValueError(f"Expected values to be list/array, got {type(values)}")
-        if len(values) >= FINE_GRAINED_MIN_SAMPLES:
-            wait = np.median(values)
-            iqr = compute_iqr(values)
-            confidence, fallback_tier = self.confidence_label(len(values)), "rolling"
-            return wait, confidence, len(values), fallback_tier, iqr, None
-        # TIER 2: Slot-based, now with boundary smoothing
+    def estimate_wait_time(self, unit: str, color: str, query_time: datetime) -> Union[float, str]:
+        # 1) Figure out which slot we’re in
         slot = assign_time_slot(query_time, TIME_SLOTS)
-        slot_start, slot_end = slot_boundaries(TIME_SLOTS, slot)
-        slot_start_dt = query_time.replace(hour=slot_start.hour, minute=slot_start.minute, second=0, microsecond=0)
-        slot_end_dt = query_time.replace(hour=slot_end.hour, minute=slot_end.minute, second=0, microsecond=0)
-        # Correct for end < start (overnight slots)
-        if slot_end < slot_start:
+
+        # 2) Fetch that slot’s start/end as datetimes
+        try:
+            slot_start_t, slot_end_t = slot_boundaries(TIME_SLOTS, slot)
+        except ValueError:
+            return "off-hours"
+
+        slot_start_dt = query_time.replace(
+            hour=slot_start_t.hour, minute=slot_start_t.minute,
+            second=0, microsecond=0
+        )
+
+        slot_end_dt = query_time.replace(
+            hour=slot_end_t.hour, minute=slot_end_t.minute,
+            second=0, microsecond=0
+        )
+
+        # handle overnight
+        if slot_end_t < slot_start_t:
             slot_end_dt += timedelta(days=1)
 
-        # Determine proximity to slot boundaries
-        delta_to_start = (query_time - slot_start_dt).total_seconds() / 60.0  # Minutes from slot start
-        delta_to_end = (slot_end_dt - query_time).total_seconds() / 60.0      # Minutes to slot end
+        # 3) How close are we to the start or end boundary?
+        delta_to_start = (query_time - slot_start_dt).total_seconds() / 60.0
+        delta_to_end   = (slot_end_dt - query_time).total_seconds()  / 60.0
 
-        # If within smoothing window to start, blend with previous slot
+        # 4) If we’re within the smoothing window at the **start** of the slot, blend
         if 0 <= delta_to_start < SLOT_BOUNDARY_SMOOTHING_WINDOW_MIN:
             prev_slot, _ = get_adjacent_slots(TIME_SLOTS, slot)
             if prev_slot:
-                # prev_samples = self.datastore.get_slot_samples(unit, risk_color, prev_slot, query_time.date())
-                prev_samples = self.datastore.fetch_slot_events(unit, risk_color, prev_slot, query_time.date().isoformat())
-                prev_values = apply_iqr_filter(prev_samples.values, IQR_OUTLIER_FACTOR)
-                # samples = self.datastore.get_slot_samples(unit, risk_color, slot, query_time.date())
-                cur_samples = self.datastore.fetch_slot_events(unit, risk_color, slot, query_time.date().isoformat())
-                cur_values = apply_iqr_filter(cur_samples.values, IQR_OUTLIER_FACTOR)
-                # Only blend if both slots have enough samples
-                if len(prev_values) >= SLOT_MIN_SAMPLES and len(cur_values) >= SLOT_MIN_SAMPLES:
-                    w = delta_to_start / SLOT_BOUNDARY_SMOOTHING_WINDOW_MIN
-                    median = (1-w) * np.median(cur_values) + w * np.median(prev_values)
-                    iqr = (1-w) * compute_iqr(cur_values) + w * compute_iqr(prev_values)
-                    sample_size = int((1-w)*len(cur_values) + w*len(prev_values))
-                    confidence = self.confidence_label(sample_size)
-                    return median, confidence, sample_size, "slot-boundary", iqr, "Slot boundary smoothing (start)"
-                # If not, fall back to using only this slot
+                est_here = self._estimate_for_slot(unit, color, query_time, slot)
+                est_prev = self._estimate_for_slot(unit, color, query_time, prev_slot)
+                w = delta_to_start / SLOT_BOUNDARY_SMOOTHING_WINDOW_MIN
+                blended = (1 - w) * est_here + w * est_prev
+                return self._clip(blended)
 
-        # If within smoothing window to end, blend with next slot
+        # 5) Likewise at the **end** boundary
         if 0 <= delta_to_end < SLOT_BOUNDARY_SMOOTHING_WINDOW_MIN:
             _, next_slot = get_adjacent_slots(TIME_SLOTS, slot)
             if next_slot:
-                # next_samples = self.datastore.get_slot_samples(unit, risk_color, next_slot, query_time.date())
-                next_samples = self.datastore.fetch_slot_events(unit, risk_color, slot, query_time.date().isoformat())
-                next_values = apply_iqr_filter(next_samples.values, IQR_OUTLIER_FACTOR)
-                # samples = self.datastore.get_slot_samples(unit, risk_color, slot, query_time.date())
-                cur_samples = self.datastore.fetch_slot_events(unit, risk_color, slot, query_time.date().isoformat())
-                cur_values = apply_iqr_filter(cur_samples.values, IQR_OUTLIER_FACTOR)
-                # Only blend if both slots have enough samples
-                if len(next_values) >= SLOT_MIN_SAMPLES and len(cur_values) >= SLOT_MIN_SAMPLES:
-                    w = delta_to_end / SLOT_BOUNDARY_SMOOTHING_WINDOW_MIN
-                    median = (1-w) * np.median(cur_values) + w * np.median(next_values)
-                    iqr = (1-w) * compute_iqr(cur_values) + w * compute_iqr(next_values)
-                    sample_size = int((1-w)*len(cur_values) + w*len(next_values))
-                    confidence = self.confidence_label(sample_size)
-                    return median, confidence, sample_size, "slot-boundary", iqr, "Slot boundary smoothing (end)"
-                # If not, fall back to using only this slot
+                est_here = self._estimate_for_slot(unit, color, query_time, slot)
+                est_next = self._estimate_for_slot(unit, color, query_time, next_slot)
+                w = delta_to_end / SLOT_BOUNDARY_SMOOTHING_WINDOW_MIN
+                blended = (1 - w) * est_here + w * est_next
+                return self._clip(blended)
 
-        # Fallback to just this slot
-        # samples = self.datastore.get_slot_samples(unit, risk_color, slot, query_time.date())
-        samples = self.datastore.fetch_slot_events(unit, risk_color, slot, query_time.date().isoformat())
-        values = apply_iqr_filter(samples.values, IQR_OUTLIER_FACTOR)
-        if len(values) >= SLOT_MIN_SAMPLES:
-            wait = np.median(values)
-            iqr = compute_iqr(values)
-            confidence, fallback_tier = self.confidence_label(len(values)), "slot-today"
-            return wait, confidence, len(values), fallback_tier, iqr, None
+        # 6) Otherwise, just use the slot‐based estimate
+        return self._estimate_for_slot(unit, color, query_time, slot)
 
-        # TIER 3: Multi-day smoothing (weighted)
-        # day_samples = self.datastore.get_multi_day_samples(unit, risk_color, slot, query_time.date(), MULTI_DAY_LOOKBACK_DAYS)
-        day_samples = self.datastore.fetch_multi_day_events(unit, risk_color, slot, query_time.date().isoformat(), MULTI_DAY_LOOKBACK_DAYS)
-        all_waits, weights = [], []
-        for i, (day, sample_series) in enumerate(sorted(day_samples.items(), reverse=True)):
-            vals = apply_iqr_filter(sample_series.values, IQR_OUTLIER_FACTOR)
-            if len(vals) > 0:
-                all_waits.extend(list(vals))
-                # Weight: 1 for today, decay for past days
-                weights.extend([MULTI_DAY_DECAY**i]*len(vals))
-        if len(all_waits) >= SLOT_MIN_SAMPLES:
-            wait = np.median(all_waits)  # Or use weighted median
-            iqr = compute_iqr(np.array(all_waits))
-            confidence, fallback_tier = self.confidence_label(len(all_waits)), "slot-multiday"
-            return wait, confidence, len(all_waits), fallback_tier, iqr, None
+    def _estimate_for_slot(self, unit: str, color: str, query_time: datetime, slot: str) -> float:
+        """
+        Core Concept 1-4 logic for a specific (unit, color, slot).
+        """
+        day_str = query_time.date().isoformat()
+        logger.info(f"day_str: {day_str}")
+        weekday = query_time.weekday()
+        logger.info(f"weekday: {weekday}")
+        ref_date = query_time.date()
+        logger.info(f"ref_date: {ref_date}")
+        # Concept 1: same day & same slot
+        logger.info(f"debug unit: {unit}")
+        logger.info(f"debug color: {color}")
+        logger.info(f"debug slot: {slot}")
+        logger.info(f"debug day_str: {day_str}")
+        df1 = self.ds.fetch_samples_unit_day_slot_color_df(unit, color, slot, day_str)
+        logger.info("df1 as json: %s", df1.to_json(orient="records"))
+        # df1 has columns ["delta_t","day"]; all days == ref_date
+        s1 = apply_iqr_filter(df1["delta_t"].to_numpy(), IQR_OUTLIER_FACTOR)
+        n1 = len(s1)
+        m1 = float(np.median(s1)) if n1 else None
 
-        # TIER 4: Default fallback
-        wait = DEFAULT_WAIT_BY_COLOR.get(risk_color, 60)
-        iqr = 0
-        confidence, fallback_tier = "low", "default"
-        explanation = "Used default wait for color; not enough recent data."
-        return wait, confidence, 0, fallback_tier, iqr, explanation
+        # Concept 3: all days, same slot
+        df3 = self.ds.fetch_samples_unit_slot_color_all_days_df(unit, color, slot)
+        logger.info("df3 as json: %s", df3.to_json(orient="records"))
+        # raw3 = apply_iqr_filter(df3["delta_t"].to_numpy(), IQR_OUTLIER_FACTOR)
+        # temporal weights by day
+        weights3 = compute_temporal_weights(
+            [d for d in df3["day"]], ref_date, TEMPORAL_DECAY_RATE
+        )
+        logger.info(f"weights3: {weights3}")
+        # align weights to raw3 after filter (simplest: assume df3 already IQR-filtered)
+        raw3 = df3["delta_t"].to_numpy()
+        n3 = len(raw3)
+        m3 = float(weighted_median(raw3, weights3)) if n3 else None
 
-    def confidence_label(self, n: int) -> str:
-        if n >= HIGH_CONFIDENCE_SAMPLES:
-            return "high"
-        elif n >= MEDIUM_CONFIDENCE_SAMPLES:
-            return "medium"
+        # Concept 2: same weekday, same slot
+        df2 = self.ds.fetch_samples_unit_color_slot_weekday_df(unit, color, slot, weekday)
+        logger.info("df2 as json: %s", df2.to_json(orient="records"))
+        # raw2 = apply_iqr_filter(df2["delta_t"].to_numpy(), IQR_OUTLIER_FACTOR)
+        raw2 = df2["delta_t"].to_numpy()
+        weights2 = compute_temporal_weights(
+            [d for d in df2["day"]], ref_date, TEMPORAL_DECAY_RATE
+        )
+        logger.info(f"weights2: {weights2}")
+        n2 = len(raw2)
+        m2 = float(weighted_median(raw2, weights2)) if n2 else None
+
+        # Concept 4: cross‐unit, same slot
+        df4 = self.ds.fetch_samples_color_slot_all_units_df(color, slot)
+        logger.info("df4 as json: %s", df2.to_json(orient="records"))
+        s4 = apply_iqr_filter(df4["delta_t"].to_numpy(), IQR_OUTLIER_FACTOR)
+        n4 = len(s4)
+        m4 = float(np.median(s4)) if n4 else DEFAULT_WAIT_BY_SLOT_COLOR[slot][color]
+
+        # ——————————————————————————————
+        # 1) Base: Prefers C1, else C3, else C4
+        fallback_to_c3 = False
+        if n1 >= CONCEPT1_MIN_SAMPLES:
+            logger.info("using: same day & same slot")
+            est, total_n = m1, n1
+            fallback_to_c3 = (n1 == CONCEPT1_MIN_SAMPLES)
+        elif n3 > 0:
+            logger.info("using: all days, same slot")
+            est, total_n = m3, n3
+            fallback_to_c3 = True
         else:
-            return "low"
+            logger.info("using: cross-unit, same slot")
+            est, total_n = m4, n4
+            fallback_to_c3 = False
+
+        # 2) Tilt toward C2 if available
+        if m2 is not None:
+            logger.info("using: same weekday, same slot")
+            w2 = n2 / (total_n + n2)
+            est = (1 - w2) * est + w2 * m2
+            total_n += n2
+
+        # 3) Dynamic C3 threshold based on how long we've been collecting
+        threshold3 = max(CONCEPT3_MIN_SAMPLES, n2)
+
+        # 4) If we fell back to C3 but have too few C3 samples, tilt toward C4
+        if fallback_to_c3 and n3 < threshold3:
+            w4 = n4 / (total_n + n4)
+            est = (1 - w4) * est + w4 * m4
+            total_n += n4
+
+        # 5) Clip to plausible range
+        return self._clip(est)
+
+    def _clip(self, value: float) -> float:
+        """Ensure we never predict outside [MIN_WAIT, MAX_WAIT]."""
+        return max(min(value, MAX_WAIT_MINUTES), MIN_WAIT_MINUTES)

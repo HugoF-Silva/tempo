@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
 from config import RISK_COLORS, MAX_WAIT_MINUTES, MIN_WAIT_MINUTES, TIME_SLOTS, DYNAMODB_TABLE, AWS_REGION, DEFAULT_WAIT_BY_COLOR
-from utils import assign_time_slot, compute_iqr
+from utils import assign_time_slot, compute_iqr, to_date
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 from botocore.exceptions import ClientError
@@ -13,6 +13,7 @@ from dateutil import parser
 import pytz
 import json
 import logging
+from zoneinfo import ZoneInfo
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -60,31 +61,31 @@ class DataStore:
 
     def ingest_event(self, pseudonym: str, unit: str, event_type: str,
                     risk_color: Optional[str], timestamp: datetime):
-        timestamp_str = timestamp.isoformat()
+        # Always treat timestamp as UTC unless proven otherwise
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        timestamp_str = timestamp.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
         hashed_pseudonym = hash_pseudonym(pseudonym, self.secret)
 
         response = self.table.query(
-                KeyConditionExpression=Key("pseudonym").eq(hashed_pseudonym),
-                FilterExpression=Attr("unit").eq(unit),
-                ScanIndexForward=False,  # Most recent first
-            )
-
+            KeyConditionExpression=Key("pseudonym").eq(hashed_pseudonym) & Key("event_id").begins_with(f"{unit}#")
+        )
 
         items = response.get("Items", [])
-
         if event_type == "cinza":
             if items:
                 for item in items:
                     self.table.delete_item(
                         Key={
                             "pseudonym": hashed_pseudonym,
-                            "event_time": item["event_time"]
+                            "event_id": item["event_id"]
                         }
                     )
 
             # Persist cinza event
             item = {
                 "pseudonym": hashed_pseudonym,
+                "event_id": f"{unit}#{event_type}",
                 "unit": unit,
                 "cinza_time": timestamp_str,
                 "event_time": timestamp_str,
@@ -95,24 +96,34 @@ class DataStore:
         
         elif event_type == "rc":
             # Retrieve last cinza event for this pseudonym/unit
-            response = self.table.query(
-                KeyConditionExpression=Key("pseudonym").eq(hashed_pseudonym),
-                FilterExpression=Attr("event_type").eq("cinza") & Attr("unit").eq(unit),
-                ScanIndexForward=False,  # Most recent first
-                Limit=1
-            )
             if not items:
                 return None  # No matching cinza
             
-            cinza_entry = items[0]
-            cinza_time = datetime.fromisoformat(cinza_entry["cinza_time"])
+            for item in items:
+                if item["event_type"] == "rc":
+                    self.table.delete_item(
+                        Key={
+                            "pseudonym": hashed_pseudonym,
+                            "event_id": item["event_id"],
+                        }
+                    )
+                if item["event_type"] == "cinza":
+                    cinza_entry = item
+                    cinza_time = datetime.fromisoformat(cinza_entry["cinza_time"])
+                
+            if not cinza_time:
+                return None
+            
             delta_t = (timestamp - cinza_time).total_seconds() / 60.0
-            if not (MIN_WAIT_MINUTES <= delta_t <= MAX_WAIT_MINUTES):
-                return None  # Outlier or invalid data
+            local_ts = timestamp.astimezone(ZoneInfo("America/Sao_Paulo"))
+            day_str = local_ts.date().isoformat()
+            # if not (MIN_WAIT_MINUTES <= delta_t <= MAX_WAIT_MINUTES):
+                # return None  # Outlier or invalid data
 
-            slot = assign_time_slot(timestamp, TIME_SLOTS)  # Can be "off-hours"
+            slot = assign_time_slot(cinza_time, TIME_SLOTS)  # Can be "off-hours"
             item = {
                 "pseudonym": hashed_pseudonym,
+                "event_id": f"{unit}#{event_type}",
                 "unit": unit,
                 "event_time": timestamp_str,
                 "cinza_time": cinza_entry["cinza_time"],
@@ -120,65 +131,14 @@ class DataStore:
                 "risk_color": risk_color,
                 "delta_t": Decimal(str(delta_t)),
                 "slot": slot,
-                "day": timestamp.date().isoformat(),
+                "day": day_str,
                 "event_type": "rc"
             }
             self.table.put_item(Item=item)
             return delta_t
         else:
             return None
-
-
-    def fetch_events(self, unit: str, risk_color: str,
-                    time_from: datetime, time_to: datetime,
-                    days: Optional[List[str]] = None) -> pd.Series:
-        # For MVP, scan whole table (ok for small city, low load, improve with GSI if scale)
-        response = self.table.scan(
-            FilterExpression=Attr('unit').eq(unit) & 
-                             Attr('risk_color').eq(risk_color) & 
-                             Attr('event_type').eq('rc')
-        )
-
-        items = response.get('Items', [])
-        data = []
-        for item in items:
-            rc_time = parser.isoparse(item['rc_time'])
-            if rc_time.tzinfo is None:
-                rc_time = rc_time.replace(tzinfo=pytz.UTC)
-            if time_from <= rc_time <= time_to:
-                if days is None or item['day'] in days:
-                    data.append(float(item['delta_t']))
-        return pd.Series(data)
     
-    def fetch_slot_events(self, unit: str, risk_color: str, slot: str,
-                         day: Optional[str] = None) -> pd.Series:
-        response = self.table.scan(
-            FilterExpression=Attr('unit').eq(unit) &
-                             Attr('risk_color').eq(risk_color) &
-                             Attr('slot').eq(slot) &
-                             Attr('event_type').eq('rc')
-        )
-        items = response.get('Items', [])
-        data = []
-        for item in items:
-            if (day is None) or (item['day'] == day):
-                data.append(float(item['delta_t']))
-        return pd.Series(data)
-
-    def fetch_multi_day_events(self, unit: str, risk_color: str, slot: str,
-                             current_day: str, lookback: int) -> Dict[str, pd.Series]:
-        results = {}
-        cur_date = datetime.fromisoformat(current_day)
-        for offset in range(lookback + 1):
-            day = (cur_date - timedelta(days=offset)).date().isoformat()
-            s = self.fetch_slot_events(unit, risk_color, slot, day)
-            if not s.empty:
-                results[day] = s
-        return results
-
-    # def get_all_data(self):
-    #     return self.df.copy()
-
     def list_units(self):
         # This is an MVP approach - scan table and extract unique units.
         response = self.table.scan(
@@ -188,26 +148,7 @@ class DataStore:
         items = response.get('Items', [])
         units = set(item['unit'] for item in items)
         return list(units)
-    
 
-    def register_unit(self, unit, address=None, postal_code=None, latitude=None, longitude=None):
-        item = {"unit": unit}
-        if latitude is not None and longitude is not None:
-            # Convert float to Decimal!
-            item["lat"] = Decimal(str(latitude))
-            item["lng"] = Decimal(str(longitude))
-        if address:
-            item["address"] = address
-        if postal_code:
-            item["postal_code"] = postal_code
-        self.units_table.put_item(Item=item)
-        return item
-
-
-    def get_all_units_with_locations(self):
-        response = self.units_table.scan()
-        return response.get("Items", [])
-    
     def store_user_route_times(self, user_phone, latitude, longitude, results):
         # results: list of dicts [{unit, travel_time_min}]
         print("USER_PHONE:", repr(user_phone))
@@ -225,8 +166,100 @@ class DataStore:
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 })
 
-    def get_user_route_times(self, user_phone):
-        response = self.user_route_table.query(
+    # Unit registration
+    def register_unit(self, unit: str, address: Optional[str] = None,
+                      postal_code: Optional[str] = None,
+                      latitude: Optional[float] = None,
+                      longitude: Optional[float] = None) -> Dict:
+        item = {"unit": unit}
+        if latitude is not None and longitude is not None:
+            item.update({"lat": latitude, "lng": longitude})
+        if address:
+            item["address"] = address
+        if postal_code:
+            item["postal_code"] = postal_code
+        self.units_table.put_item(Item=item)
+        return item
+
+    # List registered units
+    def get_all_units_with_locations(self) -> List[Dict]:
+        resp = self.units_table.scan()
+        return resp.get("Items", [])
+
+    # Retrieve stored route times for a user
+    def get_user_route_times(self, user_phone: str) -> List[Dict]:
+        resp = self.user_route_table.query(
             KeyConditionExpression=Key("user_phone").eq(user_phone)
         )
-        return response.get("Items", [])
+        return resp.get("Items", [])
+
+    # Fetch samples for a specific unit, day, slot, and color
+    def fetch_samples_unit_day_slot_color_df(self, unit: str, color: str,
+                                             slot: str, day_str: str) -> pd.DataFrame:
+        resp = self.table.scan(
+            FilterExpression=Attr('unit').eq(unit)
+                            & Attr('risk_color').eq(color)
+                            & Attr('slot').eq(slot)
+                            & Attr('day').eq(day_str)
+                            & Attr('event_type').eq('rc')
+        )
+        items = resp.get('Items', [])
+        if not items:
+            return pd.DataFrame(columns=['delta_t', 'day'])
+        df = pd.DataFrame(items)
+        df['delta_t'] = df['delta_t'].astype(float)
+        return df[['delta_t', 'day']]
+
+    # Fetch samples for same unit, slot, color across all days
+    def fetch_samples_unit_slot_color_all_days_df(self, unit: str, color: str,
+                                                  slot: str) -> pd.DataFrame:
+        resp = self.table.scan(
+            FilterExpression=Attr('unit').eq(unit)
+                            & Attr('risk_color').eq(color)
+                            & Attr('slot').eq(slot)
+                            & Attr('event_type').eq('rc')
+        )
+        items = resp.get('Items', [])
+        if not items:
+            return pd.DataFrame(columns=['delta_t', 'day'])
+        df = pd.DataFrame(items)
+        df['delta_t'] = df['delta_t'].astype(float)
+        return df[['delta_t', 'day']]
+
+    # Fetch samples for same unit, slot, color, and weekday
+    def fetch_samples_unit_color_slot_weekday_df(self, unit: str, color: str,
+                                                 slot: str, weekday: int) -> pd.DataFrame:
+        resp = self.table.scan(
+            FilterExpression=Attr('unit').eq(unit)
+                            & Attr('risk_color').eq(color)
+                            & Attr('slot').eq(slot)
+                            & Attr('event_type').eq('rc')
+        )
+        items = resp.get('Items', [])
+        if not items:
+            return pd.DataFrame(columns=['delta_t', 'day'])
+        df = pd.DataFrame(items)
+        df['rc_time'] = pd.to_datetime(
+            df['rc_time'],
+            format='ISO8601'
+        )
+
+        # filter on the weekday
+        df = df[df['rc_time'].dt.weekday == weekday]
+
+        df['delta_t'] = df['delta_t'].astype(float)
+        return df[['delta_t', 'day']]
+
+    # Fetch samples across all units for a given slot and color
+    def fetch_samples_color_slot_all_units_df(self, color: str, slot: str) -> pd.DataFrame:
+        resp = self.table.scan(
+            FilterExpression=Attr('risk_color').eq(color)
+                            & Attr('slot').eq(slot)
+                            & Attr('event_type').eq('rc')
+        )
+        items = resp.get('Items', [])
+        if not items:
+            return pd.DataFrame(columns=['delta_t'])
+        df = pd.DataFrame(items)
+        df['delta_t'] = df['delta_t'].astype(float)
+        return df[['delta_t']]

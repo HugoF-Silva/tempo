@@ -1,31 +1,34 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, date
 import numpy as np
 from typing import List, Tuple, Optional
 from WazeRouteCalculator import WazeRouteCalculator
 import logging
+from zoneinfo import ZoneInfo
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def assign_time_slot(ts: datetime, slots: List[Tuple[str, str]]) -> str:
-    t = ts.time()
+def assign_time_slot(ts: datetime, slots: list[tuple[str,str]]) -> str:
+    """
+    Given a timezone-aware or naive UTC datetime `ts`, first convert it
+    to local Brazil time (America/Sao_Paulo), then pick the correct slot.
+    """
+    # 1) Ensure ts is timezone-aware in UTC, then convert to local
+    if ts.tzinfo is None:
+        # assume naive == UTC
+        ts = ts.replace(tzinfo=ZoneInfo("UTC"))
+    local_ts = ts.astimezone(ZoneInfo("America/Sao_Paulo"))
+    # 2) Extract local time and match against your slots
+    t = local_ts.time()
     for start_str, end_str in slots:
         start = datetime.strptime(start_str, "%H:%M").time()
-        end = datetime.strptime(end_str, "%H:%M").time()
+        end   = datetime.strptime(end_str,   "%H:%M").time()
+        # normal same-day slot
         if start <= t < end:
             return f"{start_str}-{end_str}"
-    logger.info("OFF")
+        # if you ever have overnight slots (end < start), handle here—
+        # for now your slots are all same-day so we skip that.
     return "off-hours"
-
-def rolling_window_bounds(query_time: datetime, window_minutes: int) -> Tuple[datetime, datetime]:
-    half = timedelta(minutes=window_minutes // 2)
-    return query_time - half, query_time + half
-
-def weighted_median(data: np.ndarray, weights: np.ndarray) -> float:
-    sorter = np.argsort(data)
-    data, weights = data[sorter], weights[sorter]
-    cum_weights = np.cumsum(weights)
-    cutoff = weights.sum() / 2.0
-    return data[cum_weights >= cutoff][0]
 
 def compute_iqr(values: np.ndarray) -> float:
     if len(values) == 0:
@@ -42,6 +45,24 @@ def apply_iqr_filter(values: np.ndarray, factor: float = 1.5):
     upper = q3 + factor * iqr
     return values[(values >= lower) & (values <= upper)]
 
+def compute_temporal_weights(dates: List[date], reference: date, decay_rate: float) -> np.ndarray:
+    """
+    For each sample date d in `dates`, compute decay_rate ** business_days_between(d, reference).
+    Returns an array of weights aligned with dates.
+    """
+    w = []
+    for d in dates:
+        # count Mon–Fri days between d and reference
+        logger.info(f"business days between: {d} and {reference}")
+        days = business_days_between(d, reference)
+        logger.info(f"days: {days}")
+        if days <= 0:
+            w.append(0)
+        else:
+            w.append(decay_rate ** days)
+        logger.info(f"weights loading: {w}")
+    return np.array(w)
+
 def get_adjacent_slots(slots: List[Tuple[str, str]], slot_label: str) -> Tuple[Optional[str], Optional[str]]:
     """Given a slot label, returns (previous_slot, next_slot) labels if exist."""
     slot_labels = [f"{start}-{end}" for start, end in slots]
@@ -53,13 +74,36 @@ def get_adjacent_slots(slots: List[Tuple[str, str]], slot_label: str) -> Tuple[O
 def slot_boundaries(slots: List[Tuple[str, str]], slot_label: str) -> Tuple[time, time]:
     """Returns (start_time, end_time) for the given slot label."""
     for start_str, end_str in slots:
-        print(f"STRArtstr, end_str: {start_str, end_str}")
-        print(f"SLOT_LABEL: {slot_label}")
         if slot_label == f"{start_str}-{end_str}":
             start = datetime.strptime(start_str, "%H:%M").time()
             end = datetime.strptime(end_str, "%H:%M").time()
             return start, end
     raise ValueError("Slot label not found")
+
+from dateutil import parser 
+
+def to_date(d):
+    if isinstance(d, date) and not isinstance(d, datetime):
+        return d
+    if isinstance(d, datetime):
+        return d.date()
+    # handles ISO strings with “Z” or offsets:
+    return parser.isoparse(d).date()
+
+def business_days_between(start_date, end_date) -> int:
+    """Count Mon–Fri days from start_date to end_date inclusive."""
+    start = to_date(start_date)
+    end   = to_date(end_date)
+    if start > end:
+        return 0
+
+    total_days = (end - start).days + 1
+    business_days = 0
+    for i in range(total_days):
+        if (start + timedelta(days=i)).weekday() < 5:
+            business_days += 1
+    return business_days
+
 
 def get_route_time(start_lat, start_lng, end_lat, end_lng):
     try:
@@ -73,3 +117,9 @@ def get_route_time(start_lat, start_lng, end_lat, end_lng):
         # Log error or return a high fallback value
         return None
 
+def weighted_median(data: np.ndarray, weights: np.ndarray) -> float:
+    sorter = np.argsort(data)
+    data, weights = data[sorter], weights[sorter]
+    cum_weights = np.cumsum(weights)
+    cutoff = weights.sum() / 2.0
+    return data[cum_weights >= cutoff][0]

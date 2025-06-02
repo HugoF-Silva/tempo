@@ -15,6 +15,10 @@ datastore = DataStore()
 estimator = WaitTimeEstimator(datastore)
 
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+from decimal import Decimal
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,8 +43,8 @@ def register_unit(req: RegisterUnitRequest):
         unit=req.unit,
         address=req.address,
         postal_code=req.postal_code,
-        latitude=req.latitude,
-        longitude=req.longitude
+        latitude=Decimal(str(req.latitude)),
+        longitude=Decimal(str(req.longitude))
     )
     return RegisterUnitResponse(
         success=True,
@@ -63,18 +67,13 @@ def annotate_event(event: AnnotateEventRequest):
 
 @app.post("/estimate", response_model=EstimateResponse)
 def estimate_wait_time(req: EstimateRequest):
-    est, conf, n, tier, iqr, explanation = estimator.estimate_wait_time(
+    est = estimator.estimate_wait_time(
         unit=req.unit,
         risk_color=req.risk_color,
         query_time=req.query_time
     )
     return EstimateResponse(
-        estimated_wait=est,
-        confidence=conf,
-        sample_size=n,
-        fallback_tier=tier,
-        iqr=iqr,
-        explanation=explanation
+        estimated_wait=est
     )
 
 @app.get("/all_estimates", response_model=AllEstimatesResponse)
@@ -82,11 +81,16 @@ def all_estimates(query_time: datetime = Query(...)):
     units = datastore.list_units()
     estimates = []
     for unit in units:
-        blue_est, *_ = estimator.estimate_wait_time(unit, 'b', query_time)
-        green_est, *_ = estimator.estimate_wait_time(unit, 'g', query_time)
-        yellow_est, *_ = estimator.estimate_wait_time(unit, 'y', query_time)
-        orange_est, *_ = estimator.estimate_wait_time(unit, 'o', query_time)
-        red_est, *_ = estimator.estimate_wait_time(unit, 'r', query_time)
+        logger.info(f"\nunit {unit}, blue")
+        blue_est = estimator.estimate_wait_time(unit, 'b', query_time)
+        logger.info(f"\nunit {unit}, green")
+        green_est = estimator.estimate_wait_time(unit, 'g', query_time)
+        logger.info(f"\nunit {unit}, yellow")
+        yellow_est = estimator.estimate_wait_time(unit, 'y', query_time)
+        logger.info(f"\nunit {unit}, orange")
+        orange_est = estimator.estimate_wait_time(unit, 'o', query_time)
+        logger.info(f"\nunit {unit}, red")
+        red_est = estimator.estimate_wait_time(unit, 'r', query_time)
         estimates.append(
             UnitEstimates(
                 unit=unit,
