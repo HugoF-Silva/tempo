@@ -2,10 +2,9 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict
 from config import RISK_COLORS, MAX_WAIT_MINUTES, MIN_WAIT_MINUTES, TIME_SLOTS, DYNAMODB_TABLE, AWS_REGION, DEFAULT_WAIT_BY_COLOR
-from utils import assign_time_slot, compute_iqr, to_date
+from utils import assign_time_slot, compute_iqr, to_date, get_secret
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
-from botocore.exceptions import ClientError
 from decimal import Decimal
 import hashlib
 import os
@@ -14,33 +13,16 @@ import pytz
 import json
 import logging
 from zoneinfo import ZoneInfo
+import json
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def get_secret():
 
-    secret_name = "pseodonym/salt"
-    region_name = "us-east-1"
-
-    # Create a Secrets Manager client
-    session = boto3.session.Session()
-    client = session.client(
-        service_name='secretsmanager',
-        region_name=region_name
-    )
-
-    try:
-        get_secret_value_response = client.get_secret_value(
-            SecretId=secret_name
-        )
-    except ClientError as e:
-        # For a list of exceptions thrown, see
-        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-        raise e
-
-    secret = get_secret_value_response['SecretString']
-
-    return secret
+class AdminConfig:
+    def __init__(self):
+        self.secrets = get_secret("admin/login")
 
 def hash_pseudonym(pseudonym: str, salt: str) -> str:
     # Combine pseudonym and salt, encode, hash
@@ -57,7 +39,7 @@ class DataStore:
         self.units_table = self.dynamodb.Table("units")
         self.table = self.dynamodb.Table(DYNAMODB_TABLE)
         self.user_route_table = self.dynamodb.Table("user_route_times")
-        self.secret = get_secret()
+        self.secret = get_secret("pseodonym/salt")['SALT']
 
     def ingest_event(self, pseudonym: str, unit: str, event_type: str,
                     risk_color: Optional[str], timestamp: datetime):
@@ -120,7 +102,7 @@ class DataStore:
             # if not (MIN_WAIT_MINUTES <= delta_t <= MAX_WAIT_MINUTES):
                 # return None  # Outlier or invalid data
 
-            slot = assign_time_slot(cinza_time, TIME_SLOTS)  # Can be "off-hours"
+            slot, _ = assign_time_slot(cinza_time, TIME_SLOTS)  # Can be "off-hours"
             item = {
                 "pseudonym": hashed_pseudonym,
                 "event_id": f"{unit}#{event_type}",
@@ -263,3 +245,9 @@ class DataStore:
         df = pd.DataFrame(items)
         df['delta_t'] = df['delta_t'].astype(float)
         return df[['delta_t']]
+    
+
+if __name__ == "__main__":
+    v = get_secret("pseodonym/salt")
+    print(type(v))
+    print(v)

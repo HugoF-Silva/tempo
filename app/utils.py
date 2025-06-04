@@ -4,9 +4,34 @@ from typing import List, Tuple, Optional
 from WazeRouteCalculator import WazeRouteCalculator
 import logging
 from zoneinfo import ZoneInfo
+from botocore.exceptions import ClientError
+import boto3
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def get_secret(secret_name: str):
+    region_name = "us-east-1"
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except ClientError as e:
+        # For a list of exceptions thrown, see
+        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        raise e
+
+    secret = get_secret_value_response['SecretString']
+    return json.loads(secret)
 
 def assign_time_slot(ts: datetime, slots: list[tuple[str,str]]) -> str:
     """
@@ -25,10 +50,26 @@ def assign_time_slot(ts: datetime, slots: list[tuple[str,str]]) -> str:
         end   = datetime.strptime(end_str,   "%H:%M").time()
         # normal same-day slot
         if start <= t < end:
-            return f"{start_str}-{end_str}"
+            return f"{start_str}-{end_str}", local_ts
         # if you ever have overnight slots (end < start), handle here—
         # for now your slots are all same-day so we skip that.
-    return "off-hours"
+    return "off-hours", local_ts
+
+def assign_rc_wait(local_ts: datetime, slots: list[tuple[str,str,int]]) -> str:
+    """
+    Given a ts from local Brazil time (America/Sao_Paulo), pick the correct slot.
+    """
+    # 2) Extract local time and match against your slots
+    t = local_ts.time()
+    for start_str, end_str, def_wait in slots:
+        start = datetime.strptime(start_str, "%H:%M").time()
+        end   = datetime.strptime(end_str,   "%H:%M").time()
+        # normal same-day slot
+        if start <= t < end:
+            return def_wait
+        # if you ever have overnight slots (end < start), handle here—
+        # for now your slots are all same-day so we skip that.
+    return 0
 
 def compute_iqr(values: np.ndarray) -> float:
     if len(values) == 0:
@@ -53,14 +94,14 @@ def compute_temporal_weights(dates: List[date], reference: date, decay_rate: flo
     w = []
     for d in dates:
         # count Mon–Fri days between d and reference
-        logger.info(f"business days between: {d} and {reference}")
+        # logger.info(f"business days between: {d} and {reference}")
         days = business_days_between(d, reference)
-        logger.info(f"days: {days}")
+        # logger.info(f"days: {days}")
         if days <= 0:
             w.append(0)
         else:
             w.append(decay_rate ** days)
-        logger.info(f"weights loading: {w}")
+        # logger.info(f"weights loading: {w}")
     return np.array(w)
 
 def get_adjacent_slots(slots: List[Tuple[str, str]], slot_label: str) -> Tuple[Optional[str], Optional[str]]:

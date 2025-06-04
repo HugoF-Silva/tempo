@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from "react";
 
+// AWS Cognito configuration - Replace these with your actual values
+const COGNITO_CONFIG = {
+  region: process.env.REACT_APP_COGNITO_REGION,
+  userPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
+  clientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
+};
+
 // Set your API base URL here:
-const API_URL = "https://api.mttvps.shop"; // e.g., http://localhost:8080
+const API_URL = "https://api.mttvps.shop";
 
 const riskColors = [
   { value: "b", label: "Blue" },
@@ -11,7 +18,287 @@ const riskColors = [
   { value: "r", label: "Red" },
 ];
 
-function AppFunc() {
+// Simple Cognito authentication wrapper
+class CognitoAuth {
+  static async signIn(username, password) {
+    const authData = {
+      Username: username,
+      Password: password,
+    };
+
+    const authDetails = {
+      AuthFlow: "USER_PASSWORD_AUTH",
+      ClientId: COGNITO_CONFIG.clientId,
+      AuthParameters: {
+        USERNAME: username,
+        PASSWORD: password,
+      },
+    };
+
+    try {
+      const response = await fetch(`https://cognito-idp.${COGNITO_CONFIG.region}.amazonaws.com/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-amz-json-1.1",
+          "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth",
+        },
+        body: JSON.stringify(authDetails),
+      });
+
+      const data = await response.json();
+      
+      if (data.ChallengeName === "NEW_PASSWORD_REQUIRED") {
+        return { challengeName: "NEW_PASSWORD_REQUIRED", session: data.Session };
+      }
+
+      if (data.AuthenticationResult) {
+        return {
+          success: true,
+          accessToken: data.AuthenticationResult.AccessToken,
+          idToken: data.AuthenticationResult.IdToken,
+          refreshToken: data.AuthenticationResult.RefreshToken,
+        };
+      }
+
+      throw new Error(data.message || "Authentication failed");
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async respondToNewPasswordChallenge(username, newPassword, session) {
+    const challengeResponse = {
+      ChallengeName: "NEW_PASSWORD_REQUIRED",
+      ClientId: COGNITO_CONFIG.clientId,
+      ChallengeResponses: {
+        USERNAME: username,
+        NEW_PASSWORD: newPassword,
+      },
+      Session: session,
+    };
+
+    try {
+      const response = await fetch(`https://cognito-idp.${COGNITO_CONFIG.region}.amazonaws.com/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-amz-json-1.1",
+          "X-Amz-Target": "AWSCognitoIdentityProviderService.RespondToAuthChallenge",
+        },
+        body: JSON.stringify(challengeResponse),
+      });
+
+      const data = await response.json();
+
+      if (data.AuthenticationResult) {
+        return {
+          success: true,
+          accessToken: data.AuthenticationResult.AccessToken,
+          idToken: data.AuthenticationResult.IdToken,
+          refreshToken: data.AuthenticationResult.RefreshToken,
+        };
+      }
+
+      throw new Error(data.message || "Password change failed");
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static signOut() {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("idToken");
+    localStorage.removeItem("refreshToken");
+  }
+
+  static isAuthenticated() {
+    return !!localStorage.getItem("accessToken");
+  }
+
+  static getAccessToken() {
+    return localStorage.getItem("accessToken");
+  }
+}
+
+// Login Component
+function LoginForm({ onLoginSuccess }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [needsNewPassword, setNeedsNewPassword] = useState(false);
+  const [session, setSession] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!username || !password) {
+      setError("Please fill in all fields");
+      return;
+    }
+    
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await CognitoAuth.signIn(username, password);
+      
+      if (result.challengeName === "NEW_PASSWORD_REQUIRED") {
+        setNeedsNewPassword(true);
+        setSession(result.session);
+      } else if (result.success) {
+        localStorage.setItem("accessToken", result.accessToken);
+        localStorage.setItem("idToken", result.idToken);
+        localStorage.setItem("refreshToken", result.refreshToken);
+        onLoginSuccess();
+      }
+    } catch (err) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await CognitoAuth.respondToNewPasswordChallenge(username, newPassword, session);
+      
+      if (result.success) {
+        localStorage.setItem("accessToken", result.accessToken);
+        localStorage.setItem("idToken", result.idToken);
+        localStorage.setItem("refreshToken", result.refreshToken);
+        onLoginSuccess();
+      }
+    } catch (err) {
+      setError(err.message || "Password change failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e, action) => {
+    if (e.key === 'Enter') {
+      action();
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <h2 className="text-2xl font-bold text-center mb-6">Admin Login</h2>
+        
+        {!needsNewPassword ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Username
+              </label>
+              <input
+                type="text"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={(e) => handleKeyPress(e, handleLogin)}
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={(e) => handleKeyPress(e, handleLogin)}
+                disabled={loading}
+              />
+            </div>
+            
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+            
+            <button
+              onClick={handleLogin}
+              className="w-full bg-blue-600 text-white py-2 rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-blue-50 text-blue-700 p-3 rounded-md text-sm mb-4">
+              You must change your password on first login.
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                New Password
+              </label>
+              <input
+                type="password"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                onKeyPress={(e) => handleKeyPress(e, handlePasswordChange)}
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onKeyPress={(e) => handleKeyPress(e, handlePasswordChange)}
+                disabled={loading}
+              />
+            </div>
+            
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+            
+            <button
+              onClick={handlePasswordChange}
+              className="w-full bg-blue-600 text-white py-2 rounded-md font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+            >
+              {loading ? "Changing password..." : "Change Password"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Main App Component (Protected)
+function ProtectedApp() {
   const [tab, setTab] = useState("register");
   // Register unit state
   const [unitName, setUnitName] = useState("");
@@ -37,7 +324,11 @@ function AppFunc() {
   const fetchUnits = async () => {
     if (tab === "annotate") {
       try {
-        const res = await fetch(`${API_URL}/units`);
+        const res = await fetch(`${API_URL}/units`, {
+          headers: {
+            "Authorization": `Bearer ${CognitoAuth.getAccessToken()}`
+          }
+        });
         const data = await res.json();
         setUnits(data.units || []);
       } catch (e) {
@@ -46,8 +337,12 @@ function AppFunc() {
     }
   };
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
+  const handleRegister = async () => {
+    if (!unitName) {
+      setRegisterMsg("❌ Unit name is required");
+      return;
+    }
+    
     setRegisterMsg("");
     let latitude = lat ? parseFloat(lat) : undefined;
     let longitude = lng ? parseFloat(lng) : undefined;
@@ -56,7 +351,11 @@ function AppFunc() {
     const cleanedCep = postalCode ? postalCode.replace(/\D/g, '') : '';
     if ((!latitude || !longitude) && cleanedCep.length === 8) {
       try {
-        const res = await fetch(`${API_URL}/cep_lookup?cep=${cleanedCep}`);
+        const res = await fetch(`${API_URL}/cep_lookup?cep=${cleanedCep}`, {
+          headers: {
+            "Authorization": `Bearer ${CognitoAuth.getAccessToken()}`
+          }
+        });
         if (res.ok) {
           const data = await res.json();
           console.log("CepAberto response:", data);
@@ -81,7 +380,10 @@ function AppFunc() {
     try {
       const res = await fetch(`${API_URL}/register_unit`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${CognitoAuth.getAccessToken()}`
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -102,8 +404,17 @@ function AppFunc() {
     return new Date(datetimeLocalStr + ":00-03:00").toISOString();
   }
 
-  const handleAnnotate = async (e) => {
-    e.preventDefault();
+  const handleAnnotate = async () => {
+    if (!pseudonym || !selectedUnit) {
+      setAnnotateMsg("❌ Pseudonym and Unit are required");
+      return;
+    }
+    
+    if (eventType === "rc" && !riskColor) {
+      setAnnotateMsg("❌ Risk color is required for doctor calls");
+      return;
+    }
+    
     setAnnotateMsg("");
     let body = {
       pseudonym,
@@ -114,10 +425,14 @@ function AppFunc() {
         ? toBrazilIso(timestamp)
         : new Date().toISOString(),
     };
+    
     try {
       const res = await fetch(`${API_URL}/annotate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${CognitoAuth.getAccessToken()}`
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -128,9 +443,24 @@ function AppFunc() {
     }
   };
 
+  const handleLogout = () => {
+    CognitoAuth.signOut();
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center bg-gray-100 p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-xl font-bold">Admin Tool</h1>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-red-600 hover:text-red-800"
+          >
+            Logout
+          </button>
+        </div>
+        
         <div className="flex space-x-4 mb-4">
           <button
             className={`flex-1 py-2 rounded ${tab === "register" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
@@ -147,13 +477,12 @@ function AppFunc() {
         </div>
 
         {tab === "register" && (
-          <form onSubmit={handleRegister} className="flex flex-col space-y-3">
+          <div className="flex flex-col space-y-3">
             <input
               className="border p-2 rounded"
               placeholder="Unit Name (unique)"
               value={unitName}
               onChange={e => setUnitName(e.target.value)}
-              required
             />
             <input
               className="border p-2 rounded"
@@ -185,28 +514,26 @@ function AppFunc() {
             />
             <button
               className="bg-blue-600 text-white py-2 rounded font-bold"
-              type="submit"
+              onClick={handleRegister}
             >
               Register
             </button>
             {registerMsg && <div className="text-center mt-2">{registerMsg}</div>}
-          </form>
+          </div>
         )}
 
         {tab === "annotate" && (
-          <form onSubmit={handleAnnotate} className="flex flex-col space-y-3">
+          <div className="flex flex-col space-y-3">
             <input
               className="border p-2 rounded"
               placeholder="Pseudonym (e.g. AlJo)"
               value={pseudonym}
               onChange={e => setPseudonym(e.target.value)}
-              required
             />
             <select
               className="border p-2 rounded"
               value={selectedUnit}
               onChange={e => setSelectedUnit(e.target.value)}
-              required
             >
               <option value="">Select Unit</option>
               {units.map(u => (
@@ -217,7 +544,6 @@ function AppFunc() {
               className="border p-2 rounded"
               value={eventType}
               onChange={e => setEventType(e.target.value)}
-              required
             >
               <option value="cinza">Cinza (Triage)</option>
               <option value="rc">Risk Color (Doctor Call)</option>
@@ -227,7 +553,6 @@ function AppFunc() {
                 className="border p-2 rounded"
                 value={riskColor}
                 onChange={e => setRiskColor(e.target.value)}
-                required
               >
                 <option value="">Select Risk Color</option>
                 {riskColors.map(rc => (
@@ -244,12 +569,12 @@ function AppFunc() {
             />
             <button
               className="bg-blue-600 text-white py-2 rounded font-bold"
-              type="submit"
+              onClick={handleAnnotate}
             >
               Annotate
             </button>
             {annotateMsg && <div className="text-center mt-2">{annotateMsg}</div>}
-          </form>
+          </div>
         )}
       </div>
       <div className="text-gray-400 mt-4 text-xs">MVP | Data Collector UI</div>
@@ -257,4 +582,34 @@ function AppFunc() {
   );
 }
 
-export default AppFunc;
+// Main App with Authentication Check
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    setIsAuthenticated(CognitoAuth.isAuthenticated());
+    setLoading(false);
+  }, []);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  return isAuthenticated ? (
+    <ProtectedApp />
+  ) : (
+    <LoginForm onLoginSuccess={handleLoginSuccess} />
+  );
+}
+
+export default App;
