@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 
 // AWS Cognito configuration - Replace these with your actual values
 const COGNITO_CONFIG = {
-  region: process.env.REACT_APP_COGNITO_REGION,
+  region: "us-east-1",
   userPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
   clientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
 };
