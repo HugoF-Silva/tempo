@@ -19,11 +19,6 @@ import json
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-class AdminConfig:
-    def __init__(self):
-        self.secrets = get_secret("admin/login")
-
 def hash_pseudonym(pseudonym: str, salt: str) -> str:
     # Combine pseudonym and salt, encode, hash
     to_hash = f"{salt}{pseudonym}".encode("utf-8")

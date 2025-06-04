@@ -4,7 +4,7 @@ from schema import (
     AllEstimatesResponse, UnitEstimates, RegisterUnitRequest, RegisterUnitResponse,
     RouteTimeRequest, RouteTimeResponse, RouteTimeResult
 )
-from data_store import DataStore, AdminConfig
+from data_store import DataStore
 from models import WaitTimeEstimator
 from datetime import datetime, timezone
 from utils import get_route_time
@@ -13,7 +13,6 @@ import requests
 app = FastAPI()
 datastore = DataStore()
 estimator = WaitTimeEstimator(datastore)
-adminconfig = AdminConfig()
 
 from fastapi.middleware.cors import CORSMiddleware
 import logging
