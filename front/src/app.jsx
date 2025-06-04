@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from "react";
 
-// AWS Cognito configuration - Replace these with your actual values
+// Set your API base URL here:
+const API_URL = "https://api.mttvps.shop";
+
 const COGNITO_CONFIG = {
   region: "us-east-1",
   userPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID,
   clientId: process.env.REACT_APP_COGNITO_CLIENT_ID,
-};
-
-// Set your API base URL here:
-const API_URL = "https://api.mttvps.shop";
+}
 
 const riskColors = [
   { value: "b", label: "Blue" },

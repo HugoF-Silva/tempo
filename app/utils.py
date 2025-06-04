@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta, date
+from fastapi import HTTPException, Request, status
 import numpy as np
 from typing import List, Tuple, Optional
 from WazeRouteCalculator import WazeRouteCalculator
@@ -10,7 +11,7 @@ import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+    
 def get_secret(secret_name: str):
     region_name = "us-east-1"
 
