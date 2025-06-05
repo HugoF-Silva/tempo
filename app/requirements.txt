@@ -8,3 +8,4 @@ WazeRouteCalculator
 python-jose
 httpx
 cachetools
+gunicorn

@@ -130,15 +130,19 @@ def all_estimates(query_time: datetime = Query(...)):
     estimates = []
     for unit in units:
         # logger.info(f"\nunit {unit}, blue")
-        blue_est = estimator.estimate_wait_time(unit, 'b', query_time)
+        # blue_est = estimator.estimate_wait_time(unit, 'b', query_time)
+        blue_est = 0
         # logger.info(f"\nunit {unit}, green")
         green_est = estimator.estimate_wait_time(unit, 'g', query_time)
         # logger.info(f"\nunit {unit}, yellow")
-        yellow_est = estimator.estimate_wait_time(unit, 'y', query_time)
+        # yellow_est = estimator.estimate_wait_time(unit, 'y', query_time)
+        yellow_est = 0
         # logger.info(f"\nunit {unit}, orange")
-        orange_est = estimator.estimate_wait_time(unit, 'o', query_time)
+        # orange_est = estimator.estimate_wait_time(unit, 'o', query_time)
+        orange_est = 0
         # logger.info(f"\nunit {unit}, red")
-        red_est = estimator.estimate_wait_time(unit, 'r', query_time)
+        # red_est = estimator.estimate_wait_time(unit, 'r', query_time)
+        red_est = 0
         estimates.append(
             UnitEstimates(
                 unit=unit,
