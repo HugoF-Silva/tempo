@@ -14,10 +14,14 @@ import json
 import logging
 from zoneinfo import ZoneInfo
 import json
+import time
+from cachetools import TTLCache
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+ # 5 min cache
 
 def hash_pseudonym(pseudonym: str, salt: str) -> str:
     # Combine pseudonym and salt, encode, hash
@@ -35,6 +39,7 @@ class DataStore:
         self.table = self.dynamodb.Table(DYNAMODB_TABLE)
         self.user_route_table = self.dynamodb.Table("user_route_times")
         self.secret = get_secret("pseodonym/salt")['SALT']
+        self.est_cache = TTLCache(maxsize=320000, ttl=300) 
 
     def ingest_event(self, pseudonym: str, unit: str, event_type: str,
                     risk_color: Optional[str], timestamp: datetime):
@@ -127,11 +132,9 @@ class DataStore:
         return list(units)
 
     def store_user_route_times(self, user_phone, latitude, longitude, results):
-        # results: list of dicts [{unit, travel_time_min}]
-        print("USER_PHONE:", repr(user_phone))
-        print("Latitude:", latitude, "Longitude:", longitude)
-        print("Will write these units:")
-        print(json.dumps([r["unit"] for r in results], ensure_ascii=False, indent=2))
+        # Calculate ttl for 48 hours from now
+        ttl_value = int(time.time()) + 48 * 60 * 60
+
         with self.user_route_table.batch_writer() as batch:
             for r in results:
                 batch.put_item(Item={
@@ -140,7 +143,8 @@ class DataStore:
                     "travel_time_min": Decimal(str(r["travel_time_min"])) if r["travel_time_min"] is not None else None,
                     "latitude": Decimal(str(latitude)),
                     "longitude": Decimal(str(longitude)),
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "ttl": ttl_value  # <--- add this line!
                 })
 
     # Unit registration
@@ -173,6 +177,11 @@ class DataStore:
     # Fetch samples for a specific unit, day, slot, and color
     def fetch_samples_unit_day_slot_color_df(self, unit: str, color: str,
                                              slot: str, day_str: str) -> pd.DataFrame:
+        key = ("unit_day_slot_color", unit, color, slot, day_str)
+        if key in self.est_cache:
+            print("YES cache")
+            return self.est_cache[key]
+        print("NOT cache")
         resp = self.table.scan(
             FilterExpression=Attr('unit').eq(unit)
                             & Attr('risk_color').eq(color)
@@ -182,14 +191,24 @@ class DataStore:
         )
         items = resp.get('Items', [])
         if not items:
-            return pd.DataFrame(columns=['delta_t', 'day'])
+            df = pd.DataFrame(columns=['delta_t', 'day'])
+            self.est_cache[key] = df
+            return df
+        
         df = pd.DataFrame(items)
         df['delta_t'] = df['delta_t'].astype(float)
+        
+        self.est_cache[key] = df
+
         return df[['delta_t', 'day']]
 
     # Fetch samples for same unit, slot, color across all days
     def fetch_samples_unit_slot_color_all_days_df(self, unit: str, color: str,
                                                   slot: str) -> pd.DataFrame:
+        key = ("unit_slot_color_all_days", unit, color, slot)
+        if key in self.est_cache:
+            return self.est_cache[key]
+        
         resp = self.table.scan(
             FilterExpression=Attr('unit').eq(unit)
                             & Attr('risk_color').eq(color)
@@ -198,14 +217,24 @@ class DataStore:
         )
         items = resp.get('Items', [])
         if not items:
-            return pd.DataFrame(columns=['delta_t', 'day'])
+            df = pd.DataFrame(columns=['delta_t', 'day'])
+            self.est_cache[key] = df
+            return df
+        
         df = pd.DataFrame(items)
         df['delta_t'] = df['delta_t'].astype(float)
+
+        self.est_cache[key] = df
+
         return df[['delta_t', 'day']]
 
     # Fetch samples for same unit, slot, color, and weekday
     def fetch_samples_unit_color_slot_weekday_df(self, unit: str, color: str,
                                                  slot: str, weekday: int) -> pd.DataFrame:
+        key = ("unit_color_slot_weekday", unit, color, slot, weekday)
+        if key in self.est_cache:
+            return self.est_cache[key]
+        
         resp = self.table.scan(
             FilterExpression=Attr('unit').eq(unit)
                             & Attr('risk_color').eq(color)
@@ -214,7 +243,10 @@ class DataStore:
         )
         items = resp.get('Items', [])
         if not items:
-            return pd.DataFrame(columns=['delta_t', 'day'])
+            df = pd.DataFrame(columns=['delta_t', 'day'])
+            self.est_cache[key] = df
+            return df
+        
         df = pd.DataFrame(items)
         df['rc_time'] = pd.to_datetime(
             df['rc_time'],
@@ -223,12 +255,18 @@ class DataStore:
 
         # filter on the weekday
         df = df[df['rc_time'].dt.weekday == weekday]
-
         df['delta_t'] = df['delta_t'].astype(float)
+
+        self.est_cache[key] = df
+
         return df[['delta_t', 'day']]
 
     # Fetch samples across all units for a given slot and color
     def fetch_samples_color_slot_all_units_df(self, color: str, slot: str) -> pd.DataFrame:
+        key = ("color_slot_all_units", color, slot)
+        if key in self.est_cache:
+            return self.est_cache[key]
+        
         resp = self.table.scan(
             FilterExpression=Attr('risk_color').eq(color)
                             & Attr('slot').eq(slot)
@@ -236,9 +274,15 @@ class DataStore:
         )
         items = resp.get('Items', [])
         if not items:
-            return pd.DataFrame(columns=['delta_t'])
+            df = pd.DataFrame(columns=['delta_t'])
+            self.est_cache[key] = df
+            return df
+        
         df = pd.DataFrame(items)
         df['delta_t'] = df['delta_t'].astype(float)
+
+        self.est_cache[key] = df
+        
         return df[['delta_t']]
     
 

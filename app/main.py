@@ -129,15 +129,15 @@ def all_estimates(query_time: datetime = Query(...)):
     units = datastore.list_units()
     estimates = []
     for unit in units:
-        logger.info(f"\nunit {unit}, blue")
+        # logger.info(f"\nunit {unit}, blue")
         blue_est = estimator.estimate_wait_time(unit, 'b', query_time)
-        logger.info(f"\nunit {unit}, green")
+        # logger.info(f"\nunit {unit}, green")
         green_est = estimator.estimate_wait_time(unit, 'g', query_time)
-        logger.info(f"\nunit {unit}, yellow")
+        # logger.info(f"\nunit {unit}, yellow")
         yellow_est = estimator.estimate_wait_time(unit, 'y', query_time)
-        logger.info(f"\nunit {unit}, orange")
+        # logger.info(f"\nunit {unit}, orange")
         orange_est = estimator.estimate_wait_time(unit, 'o', query_time)
-        logger.info(f"\nunit {unit}, red")
+        # logger.info(f"\nunit {unit}, red")
         red_est = estimator.estimate_wait_time(unit, 'r', query_time)
         estimates.append(
             UnitEstimates(
