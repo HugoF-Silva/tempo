@@ -408,12 +408,10 @@ function ProtectedApp() {
       setAnnotateMsg("❌ Pseudonym and Unit are required");
       return;
     }
-    
     if (eventType === "rc" && !riskColor) {
       setAnnotateMsg("❌ Risk color is required for doctor calls");
       return;
     }
-    
     setAnnotateMsg("");
     let body = {
       pseudonym,
@@ -424,7 +422,7 @@ function ProtectedApp() {
         ? toBrazilIso(timestamp)
         : new Date().toISOString(),
     };
-    
+
     try {
       const res = await fetch(`${API_URL}/annotate`, {
         method: "POST",
@@ -434,7 +432,16 @@ function ProtectedApp() {
         },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+      
+      // 👇 Add this block!
+      if (!res.ok) {
+        // Optional: try to get server error message
+        let msg = "";
+        try { msg = (await res.json()).message; } catch {}
+        throw new Error(msg || `HTTP error: ${res.status}`);
+      }
+
+      await res.json(); // parse if needed
       setAnnotateMsg("✅ Annotated!");
       setPseudonym(""); setSelectedUnit(""); setEventType("cinza"); setRiskColor(""); setTimestamp("");
     } catch (err) {
