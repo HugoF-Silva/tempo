@@ -92,8 +92,9 @@
         }
 
         .marker-pin svg {
-            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));
-            transition: transform 0.3s ease;
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         .health-marker:hover .marker-pin svg {
@@ -244,8 +245,8 @@
     <script>
         // Health center data with coordinates and status
         const healthCenters = [
-            { name: "Unit A", lat: -16.6514931, lng: -49.3280203, status: "full" },
-            { name: "Unit B", lat: -16.6121551, lng: -49.3427299, status: "average" },
+            { name: "CIAMS Urias Magalhães", lat: -16.6514931, lng: -49.3280203, status: "full" },
+            { name: "CAIS Cândida de Moraes", lat: -16.6121551, lng: -49.3427299, status: "average" },
             { name: "Unit C", lat: -16.635675, lng: -49.2749015, status: "empty" },
             { name: "Unit D", lat: -16.6179383, lng: -49.3535845, status: "full" },
             { name: "Unit E", lat: -16.667448, lng: -49.277836, status: "empty" },
