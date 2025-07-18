@@ -9,11 +9,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-    body { margin:0; }
-    #map { height:100vh; }
-    </style>
-
-    <style>
         * {
             margin: 0;
             padding: 0;
@@ -272,45 +267,109 @@
         // Initialize map centered on Goiânia
         const map = L.map('map').setView([-16.6514931, -49.3280203], 12);
 
-        // Add OpenStreetMap tiles
-        L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
-        {
+        // Add a quieter, light‑toned basemap (CartoDB Positron)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap contributors & CartoDB',
             maxZoom: 19
-        }
-        ).addTo(map);
+        }).addTo(map);
 
         let userLocation = null;
 
         // Create custom markers for each health center
-        healthCenters.forEach(c => {
-        L.circleMarker([c.lat, c.lng], {
-            radius: 8,
-            fillColor: statusColor[c.status],
-            color: '#ffffff',
-            weight: 2,
-            fillOpacity: 0.8
-        })
-        .bindTooltip(
-            `<strong>${c.name}</strong><br>Status: ${c.status}`,
-            { direction: 'top', offset: [0,-10] }
-        )
-        .addTo(map);
+        healthCenters.forEach(center => {
+            const statusColors = {
+                full: '#dc2626',
+                average: '#eab308', 
+                empty: '#16a34a'
+            };
+
+            const statusText = {
+                full: 'Currently Full',
+                average: 'Moderate Wait',
+                empty: 'Available Now'
+            };
+
+            const markerHTML = `
+                <div class="health-marker">
+                    <div class="marker-pin">
+                        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 0C12.5 0 6 6.5 6 14C6 24.5 20 40 20 40C20 40 34 24.5 34 14C34 6.5 27.5 0 20 0Z" fill="${statusColors[center.status]}"/>
+                            <circle cx="20" cy="14" r="6" fill="white"/>
+                            <path d="M20 11V17M17 14H23" stroke="${statusColors[center.status]}" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="marker-label">
+                        <span class="status-dot ${center.status}"></span>
+                        ${center.name}
+                        <div class="marker-details">
+                            <div class="marker-details-content">
+                                <strong>Status:</strong> ${statusText[center.status]}<br>
+                                <strong>Location:</strong> ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}<br>
+                                ${center.status === 'empty' ? '<strong>✓ Best choice for quick service</strong>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const icon = L.divIcon({
+                html: markerHTML,
+                className: '',
+                iconSize: [40, 40],
+                iconAnchor: [20, 40]
+            });
+
+            const marker = L.marker([center.lat, center.lng], { icon }).addTo(map);
+            
+            marker.on('click', () => {
+                let url;
+                if (userLocation) {
+                    url = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${center.lat},${center.lng}`;
+                } else {
+                    url = `https://www.google.com/maps/search/?api=1&query=${center.lat},${center.lng}`;
+                }
+                window.open(url, '_blank');
+            });
         });
 
-        // 5. Optional: user location as a simple blue circle
+        // Try to get user location
         if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-            L.circleMarker(
-            [pos.coords.latitude, pos.coords.longitude],
-            { radius:6, fillColor:'#264653', color:'#fff', weight:2, fillOpacity:0.9 }
-            )
-            .bindPopup('You are here')
-            .addTo(map);
-        });
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+
+                    // Add user marker
+                    const userIcon = L.divIcon({
+                        html: `
+                            <div style="position: relative; width: 40px; height: 40px;">
+                                <div style="position: absolute; top: 8px; left: 8px; width: 24px; height: 24px; background: #0ACCB1; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); animation: pulse 2s infinite;">
+                                </div>
+                                <div style="position: absolute; top: 14px; left: 14px; width: 12px; height: 12px; background: #065952; border-radius: 50%;">
+                                </div>
+                            </div>
+                        `,
+                        className: '',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+
+                    L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+                        .addTo(map)
+                        .bindPopup('You are here');
+
+                    // Adjust map bounds to include user location
+                    const bounds = L.latLngBounds(healthCenters.map(c => [c.lat, c.lng]));
+                    bounds.extend([userLocation.lat, userLocation.lng]);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                },
+                (error) => {
+                    console.log('Location access denied or unavailable');
+                }
+            );
         }
-        </script>
 
         // Performance optimization for production
         map.on('moveend', () => {
