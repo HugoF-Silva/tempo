@@ -151,26 +151,28 @@
         }
 
         /* 1. allow the details flex-item to shrink completely */
+        /* 1) remove it from the flex flow entirely */
         .marker-details {
-        /* collapse it out of the flex layout */
-        min-width: 0;             /* unchanged */
-        max-width: 0;             /* unchanged */
-        max-height: 0;            /* ← new: collapse vertically */
-        overflow: hidden;         /* hide both width and height overflow */
-        opacity: 0;               /* keep it invisible */
-        margin-top: 0;            /* no gap when hidden */
-        transition:
-            max-width 0.3s ease,
-            max-height 0.3s ease,  /* ← new */
-            opacity    0.3s ease,
-            margin-top 0.3s ease;
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: auto;              /* let it size to content */
+        max-width: 200px;         /* cap its width */
+        padding: 6px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        opacity: 0;
+        pointer-events: none;     /* so it doesn’t block clicks */
+        transition: opacity 0.2s ease;
         }
 
+        /* 2) show on hover */
         .health-marker:hover .marker-details {
-        max-width: 200px;         /* whatever your full width needs to be */
-        max-height: 5em;          /* enough to fit your 3 lines of text */
         opacity: 1;
-        margin-top: 8px;
+        pointer-events: auto;
+        margin-bottom: 8px;
         }
 
         .marker-details-content {
