@@ -156,23 +156,24 @@
         position: absolute;
         bottom: 100%;
         left: 50%;
-        transform: translateX(-50%);
-        width: auto;              /* let it size to content */
-        max-width: 200px;         /* cap its width */
+        transform: translateX(-50%) translateY(10px);  /* start 10px down */
+        opacity: 0;
+        pointer-events: none;
+        width: auto;
+        max-width: 200px;
         padding: 6px;
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        opacity: 0;
-        pointer-events: none;     /* so it doesn’t block clicks */
-        transition: opacity 0.2s ease;
+        transition: 
+            opacity 0.25s ease, 
+            transform 0.25s ease;                        /* animate both */
         }
 
-        /* 2) show on hover */
         .health-marker:hover .marker-details {
+        transform: translateX(-50%) translateY(0);      /* slide into place */
         opacity: 1;
         pointer-events: auto;
-        margin-bottom: 8px;
         }
 
         .marker-details-content {
