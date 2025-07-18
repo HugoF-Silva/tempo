@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Less Time - Find Your Nearest Health Center</title>
+    <meta name="description" content="Save time by finding the least crowded health center near you">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTQiIGZpbGw9IiMwNjU5NTIiLz4KPHBhdGggZD0iTTEyIDEwSDE0VjIySDE0VjEwWiIgZmlsbD0iI0ZGRkZGRiIvPgo8cGF0aCBkPSJNMTggMTBIMjBWMTZIMThaIiBmaWxsPSIjRkZGRkZGIi8+Cjwvc3ZnPg==">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #FFFFFF;
+            color: #065952;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            width: 100%;
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+            position: relative;
+        }
+
+        .instagram-link {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            color: #065952;
+            transition: color 0.3s ease;
+        }
+
+        .instagram-link:hover {
+            color: #0ACCB1;
+        }
+
+        .instagram-link svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+        }
+
+        .tagline {
+            font-size: 1.75rem;
+            font-style: italic;
+            color: #025D54;
+            margin-top: 1rem;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            font-family: Georgia, serif;
+        }
+
+        #map {
+            width: 100%;
+            height: 500px;
+            max-width: 1200px;
+            margin: 2rem auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(6, 89, 82, 0.1);
+        }
+
+        .status-marker {
+            background: white;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            text-align: center;
+        }
+
+        .status-marker:hover {
+            transform: scale(1.1);
+        }
+
+        .status-full {
+            color: #dc2626;
+            border: 2px solid #dc2626;
+        }
+
+        .status-average {
+            color: #ca8a04;
+            border: 2px solid #ca8a04;
+        }
+
+        .status-empty {
+            color: #16a34a;
+            border: 2px solid #16a34a;
+        }
+
+        .empty-icon {
+            width: 20px;
+            height: 20px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .tagline {
+                font-size: 1.5rem;
+            }
+            
+            #map {
+                height: 400px;
+                margin: 1rem;
+            }
+
+            .logo {
+                width: 100px;
+                height: 100px;
+            }
+        }
+
+        .leaflet-popup-content {
+            font-size: 14px;
+            color: #065952;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" class="instagram-link" aria-label="Visit our Instagram">
+            <svg fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1112.324 0 6.162 6.162 0 01-12.324 0zM12 16a4 4 0 110-8 4 4 0 010 8zm4.965-10.405a1.44 1.44 0 112.881.001 1.44 1.44 0 01-2.881-.001z"/>
+            </svg>
+        </a>
+        
+        <svg class="logo" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="60" cy="60" r="55" fill="#065952"/>
+            <path d="M40 35h10v50h-10v-50z" fill="#FFFFFF"/>
+            <path d="M70 35h10v25h-10v-25z" fill="#FFFFFF"/>
+            <circle cx="45" cy="30" r="8" fill="#0ACCB1"/>
+            <circle cx="75" cy="30" r="8" fill="#0ACCB1"/>
+        </svg>
+        
+        <h1 class="tagline">Health Waze saving time!</h1>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        // Health center data with coordinates and status
+        const healthCenters = [
+            { name: "Unit A", lat: -16.6514931, lng: -49.3280203, status: "full" },
+            { name: "Unit B", lat: -16.6121551, lng: -49.3427299, status: "average" },
+            { name: "Unit C", lat: -16.635675, lng: -49.2749015, status: "empty" },
+            { name: "Unit D", lat: -16.6179383, lng: -49.3535845, status: "full" },
+            { name: "Unit E", lat: -16.667448, lng: -49.277836, status: "empty" },
+            { name: "Unit F", lat: -16.6892, lng: -49.2654, status: "average" },
+            { name: "Unit G", lat: -16.6423, lng: -49.3156, status: "empty" },
+            { name: "Unit H", lat: -16.6789, lng: -49.2987, status: "full" },
+            { name: "Unit I", lat: -16.6234, lng: -49.2876, status: "average" },
+            { name: "Unit J", lat: -16.6567, lng: -49.3345, status: "empty" },
+            { name: "Unit K", lat: -16.6901, lng: -49.3123, status: "full" },
+            { name: "Unit L", lat: -16.6345, lng: -49.3567, status: "average" },
+            { name: "Unit M", lat: -16.6678, lng: -49.3234, status: "empty" }
+        ];
+
+        // Initialize map centered on Goiânia
+        const map = L.map('map').setView([-16.6514931, -49.3280203], 12);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let userLocation = null;
+
+        // SVG for empty icon (small hand gesture)
+        const emptyIconSVG = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 20V15L8 14V10C8 9.44772 8.44772 9 9 9C9.55228 9 10 9.44772 10 10V6C10 5.44772 10.4477 5 11 5C11.5523 5 12 5.44772 12 6V5C12 4.44772 12.4477 4 13 4C13.5523 4 14 4.44772 14 5V6C14 5.44772 14.4477 5 15 5C15.5523 5 16 5.44772 16 6V13L17 12C17.5523 12 18 12.4477 18 13C18 13.2652 17.8946 13.5196 17.7071 13.7071L15 16.4142V20H7Z" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+
+        // Create custom markers for each health center
+        healthCenters.forEach(center => {
+            const icon = L.divIcon({
+                html: center.status === 'empty' 
+                    ? `<div class="status-marker status-${center.status}">
+                         <div class="empty-icon">${emptyIconSVG}</div>
+                       </div>`
+                    : `<div class="status-marker status-${center.status}">${center.status.toUpperCase()}</div>`,
+                className: '',
+                iconSize: [center.status === 'empty' ? 40 : 80, 40],
+                iconAnchor: [center.status === 'empty' ? 20 : 40, 20]
+            });
+
+            const marker = L.marker([center.lat, center.lng], { icon }).addTo(map);
+            
+            marker.on('click', () => {
+                let url;
+                if (userLocation) {
+                    url = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${center.lat},${center.lng}`;
+                } else {
+                    url = `https://www.google.com/maps/search/?api=1&query=${center.lat},${center.lng}`;
+                }
+                window.open(url, '_blank');
+            });
+
+            marker.bindPopup(`<strong>${center.name}</strong><br>Status: ${center.status}`);
+        });
+
+        // Try to get user location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+
+                    // Add user marker
+                    const userIcon = L.divIcon({
+                        html: '<div style="background: #0ACCB1; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+                        className: '',
+                        iconSize: [22, 22],
+                        iconAnchor: [11, 11]
+                    });
+
+                    L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+                        .addTo(map)
+                        .bindPopup('Your location');
+
+                    // Adjust map bounds to include user location
+                    const bounds = L.latLngBounds(healthCenters.map(c => [c.lat, c.lng]));
+                    bounds.extend([userLocation.lat, userLocation.lng]);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                },
+                (error) => {
+                    console.log('Location access denied or unavailable');
+                }
+            );
+        }
+
+        // Performance optimization for production
+        map.on('moveend', () => {
+            // Debounce map operations
+            clearTimeout(window.mapTimeout);
+            window.mapTimeout = setTimeout(() => {
+                // Any heavy operations after map movement
+            }, 100);
+        });
+    </script>
+</body>
+</html>
