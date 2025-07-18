@@ -150,18 +150,25 @@
             background-color: #16a34a;
         }
 
+        /* 1. allow the details flex-item to shrink completely */
         .marker-details {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            margin-top: 0;
+        /* collapse it out of the flex layout */
+        min-width: 0;        /* allow it to shrink below its content’s min width */
+        max-width: 0;        /* clamp its width to zero when hidden */
+        overflow: hidden;    /* hide any text */
+        opacity: 0;          /* keep it invisible */
+        transition:
+            max-width 0.3s ease,
+            opacity    0.3s ease,
+            margin-top 0.3s ease;
+        margin-top: 0;       /* no gap when hidden */
         }
 
+        /* 2. when you hover, expand it to show your status/location text */
         .health-marker:hover .marker-details {
-            max-height: 100px;
-            opacity: 1;
-            margin-top: 8px;
+        max-width: 200px;    /* or whatever fits your longest line */
+        opacity: 1;
+        margin-top: 8px;
         }
 
         .marker-details-content {
