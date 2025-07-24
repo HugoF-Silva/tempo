@@ -9,11 +9,6 @@ variable "aws_region" {
 }
 
 variable "connections_table_name" {
-  description = "Name of the existing DynamoDB table for WebSocket connections"
-  type        = string
-}
-
-variable "connections_table_name" {
   description = "Name of the existing DynamoDB table used to track WebSocket connections"
   type        = string
   default     = "ws_connections"
