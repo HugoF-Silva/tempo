@@ -21,32 +21,21 @@ data "aws_dynamodb_table" "connections" {
   name = var.connections_table_name
 }
 
+# Reference an existing Lambda base role instead of creating it
+data "aws_iam_role" "lambda_base" {
+  name = var.lambda_base_role_name    # e.g. "lambda-base-execution-role"
+}
+
 ########################
 # IAM Roles & Policies
 ########################
 
-# Base Lambda role (CloudWatch Logs)
-resource "aws_iam_role" "lambda_base" {
-  name = "lambda-base-execution-role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "lambda_basic_exec" {
-  role       = aws_iam_role.lambda_base.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
+# (we no longer create aws_iam_role.lambda_base or attach the AWSLambdaBasicExecutionRole here)
 
 # Grant PutItem/DeleteItem against the existing connections table
 resource "aws_iam_role_policy" "dynamo_writes" {
   name = "lambda-dynamodb-access"
-  role = aws_iam_role.lambda_base.id
+  role = data.aws_iam_role.lambda_base.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -61,7 +50,7 @@ resource "aws_iam_role_policy" "dynamo_writes" {
 # Role for broadcast (needs Scan/Delete + ManageConnections)
 resource "aws_iam_role" "broadcast_lambda_role" {
   name               = "lambda-broadcast-execution-role"
-  assume_role_policy = aws_iam_role.lambda_base.assume_role_policy
+  assume_role_policy = data.aws_iam_role.lambda_base.assume_role_policy
 }
 
 resource "aws_iam_role_policy_attachment" "broadcast_basic_exec" {
@@ -116,7 +105,7 @@ resource "aws_lambda_function" "connect" {
   function_name    = "connect"
   runtime          = "nodejs18.x"
   handler          = "handler.handler"
-  role             = aws_iam_role.lambda_base.arn
+  role             = data.aws_iam_role.lambda_base.arn
   filename         = data.archive_file.connect.output_path
   source_code_hash = data.archive_file.connect.output_base64sha256
 
@@ -131,7 +120,7 @@ resource "aws_lambda_function" "disconnect" {
   function_name    = "disconnect"
   runtime          = "nodejs18.x"
   handler          = "handler.handler"
-  role             = aws_iam_role.lambda_base.arn
+  role             = data.aws_iam_role.lambda_base.arn
   filename         = data.archive_file.disconnect.output_path
   source_code_hash = data.archive_file.disconnect.output_base64sha256
 
