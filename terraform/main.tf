@@ -173,7 +173,7 @@ resource "aws_apigatewayv2_integration" "connect" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.connect.invoke_arn
   integration_method     = "POST"
-  payload_format_version = "2.0"
+  payload_format_version = "1.0"
 }
 
 resource "aws_apigatewayv2_integration" "disconnect" {
@@ -181,7 +181,7 @@ resource "aws_apigatewayv2_integration" "disconnect" {
   integration_type       = "AWS_PROXY"
   integration_uri        = aws_lambda_function.disconnect.invoke_arn
   integration_method     = "POST"
-  payload_format_version = "2.0"
+  payload_format_version = "1.0"
 }
 
 resource "aws_apigatewayv2_route" "connect" {
