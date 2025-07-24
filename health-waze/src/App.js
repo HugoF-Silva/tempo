@@ -17,6 +17,7 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(false);
 
   // 1) initial fetch
+  
   useEffect(() => {
     fetch(`${process.env.REACT_APP_API_BASE}/health-centers`)
       .then(r => r.json())
