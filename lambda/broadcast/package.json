@@ -1,0 +1,8 @@
+{
+"name": "@myorg/ws-connect",         // change “ws-connect” to “ws-disconnect” or “ws-broadcast” in the other folders
+  "version": "1.0.0",
+  "description": "WebSocket $connect handler",  // adjust per folder
+  "main": "connect.js",                 // or "disconnect.js" / "broadcast.js"
+  "license": "MIT",
+  "dependencies": {}
+}
