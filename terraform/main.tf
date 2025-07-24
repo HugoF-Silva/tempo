@@ -211,7 +211,7 @@ resource "aws_lambda_permission" "allow_apigw_connect" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.connect.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.websocket.execution_arn}/*/\$connect"
+  source_arn    = "${aws_apigatewayv2_api.websocket.execution_arn}/*/$connect"
 }
 
 resource "aws_lambda_permission" "allow_apigw_disconnect" {
@@ -219,5 +219,5 @@ resource "aws_lambda_permission" "allow_apigw_disconnect" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.disconnect.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.websocket.execution_arn}/*/\$disconnect"
+  source_arn    = "${aws_apigatewayv2_api.websocket.execution_arn}/*/$disconnect"
 }
