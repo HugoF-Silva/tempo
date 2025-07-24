@@ -203,6 +203,7 @@ resource "aws_apigatewayv2_stage" "prod" {
   auto_deploy = true
 }
 
+
 ########################
 # Permissions
 ########################
