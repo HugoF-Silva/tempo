@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+pandas
+numpy
+boto3
+python-jose
+httpx
+cachetools
+gunicorn
+mangum
