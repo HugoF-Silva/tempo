@@ -221,3 +221,9 @@ resource "aws_lambda_permission" "allow_apigw_disconnect" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.websocket.execution_arn}/*/$disconnect"
 }
+
+
+variable "connections_table_name" {
+  description = "Name of the existing DynamoDB table used to track WebSocket connections"
+  type        = string
+}
