@@ -2,47 +2,62 @@ name: Terraform CI/CD
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   terraform:
+    name: Terraform
     runs-on: ubuntu-latest
 
-    # Everything under `run:` will execute in ./terraform
     defaults:
       run:
         working-directory: ./terraform
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
+
+      # ← Build your Lambda ZIPs so Terraform can see them ↓
+      - name: Set up Node.js (for npm install, if needed)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install & bundle Lambda functions
+        run: |
+          # connect
+          pushd ../lambda/connect
+          npm ci --production       # install prod deps
+          zip -r ../../terraform/connect.zip .
+          popd
+
+          # disconnect
+          pushd ../lambda/disconnect
+          npm ci --production
+          zip -r ../../terraform/disconnect.zip .
+          popd
+
+          # broadcast
+          pushd ../lambda/broadcast
+          npm ci --production
+          zip -r ../../terraform/broadcast.zip .
+          popd
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id:  ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:          ${{ secrets.AWS_REGION }}
+          aws-region:            ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.4.0
 
-      - name: Terraform fmt (auto‑format)
-        run: terraform fmt -write=true
-
-      - name: Commit formatted files
-        if: steps.fmt.outputs.did_change == 'true'
-        uses: EndBug/add-and-commit@v9
-        with:
-          message: "chore: terraform fmt"
-
-      - name: Terraform fmt (verify)
+      - name: Terraform fmt (check)
         run: terraform fmt -check
 
       - name: Terraform init
