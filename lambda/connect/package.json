@@ -4,5 +4,7 @@
   "description": "WebSocket $connect handler", 
   "main": "connect.js",            
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "aws-sdk": "^2.1546.0"
+  }
 }

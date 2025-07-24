@@ -4,5 +4,7 @@
   "description": "WebSocket $disconnect handler",
   "main": "disconnect.js",
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "aws-sdk": "^2.1546.0"
+  }
 }

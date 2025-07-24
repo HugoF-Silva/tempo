@@ -1,8 +1,10 @@
 {
-"name": "@myorg/ws-broadcast",     
+  "name": "@myorg/ws-broadcast",     
   "version": "1.0.0",
   "description": "WebSocket $broadcast handler",  
   "main": "broadcast.js",              
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "aws-sdk": "^2.1546.0"
+  }
 }
