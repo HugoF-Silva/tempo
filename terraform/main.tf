@@ -114,7 +114,7 @@ data "archive_file" "broadcast" {
 
 resource "aws_lambda_function" "connect" {
   function_name    = "connect"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs18.x"
   handler          = "handler.handler"
   role             = aws_iam_role.lambda_base.arn
   filename         = data.archive_file.connect.output_path
@@ -129,7 +129,7 @@ resource "aws_lambda_function" "connect" {
 
 resource "aws_lambda_function" "disconnect" {
   function_name    = "disconnect"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs18.x"
   handler          = "handler.handler"
   role             = aws_iam_role.lambda_base.arn
   filename         = data.archive_file.disconnect.output_path
@@ -144,7 +144,7 @@ resource "aws_lambda_function" "disconnect" {
 
 resource "aws_lambda_function" "broadcast" {
   function_name    = "broadcast"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs18.x"
   handler          = "handler.handler"
   role             = aws_iam_role.broadcast_lambda_role.arn
   filename         = data.archive_file.broadcast.output_path
