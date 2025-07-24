@@ -12,27 +12,14 @@ provider "aws" {
   region = var.aws_region
 }
 
-########################
-# Data Sources
-########################
-
-# Reference the existing DynamoDB table
 data "aws_dynamodb_table" "connections" {
   name = var.connections_table_name
 }
 
-# Reference an existing Lambda base role instead of creating it
 data "aws_iam_role" "lambda_base" {
   name = var.lambda_base_role_name    # e.g. "lambda-base-execution-role"
 }
 
-########################
-# IAM Roles & Policies
-########################
-
-# (we no longer create aws_iam_role.lambda_base or attach the AWSLambdaBasicExecutionRole here)
-
-# Grant PutItem/DeleteItem against the existing connections table
 resource "aws_iam_role_policy" "dynamo_writes" {
   name = "lambda-dynamodb-access"
   role = data.aws_iam_role.lambda_base.id
@@ -78,10 +65,6 @@ resource "aws_iam_role_policy" "broadcast_policy" {
     ]
   })
 }
-
-########################
-# Package & Deploy Lambdas
-########################
 
 data "archive_file" "connect" {
   type        = "zip"
@@ -147,10 +130,6 @@ resource "aws_lambda_function" "broadcast" {
   }
 }
 
-########################
-# WebSocket API
-########################
-
 resource "aws_apigatewayv2_api" "websocket" {
   name                       = "healthcenters-ws"
   protocol_type              = "WEBSOCKET"
@@ -190,10 +169,6 @@ resource "aws_apigatewayv2_stage" "prod" {
   name        = "prod"
   auto_deploy = true
 }
-
-########################
-# Permissions
-########################
 
 resource "aws_lambda_permission" "allow_apigw_connect" {
   statement_id  = "AllowAPIGWConnect"
