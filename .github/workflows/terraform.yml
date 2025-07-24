@@ -10,11 +10,12 @@ on:
 
 jobs:
   terraform:
-    name: Terraform
     runs-on: ubuntu-latest
+
+    # Everything under `run:` will execute in ./terraform
     defaults:
       run:
-        working-directory: ./   # adjust if your Terraform files live in a subfolder
+        working-directory: ./terraform
 
     steps:
       - name: Checkout repository
@@ -43,10 +44,7 @@ jobs:
 
       - name: Terraform plan
         id: plan
-        run: |
-          terraform plan \
-            -input=false \
-            -out=tfplan
+        run: terraform plan -input=false -out=tfplan
 
       - name: Comment PR with plan
         if: github.event_name == 'pull_request'
