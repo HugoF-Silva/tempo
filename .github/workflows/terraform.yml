@@ -33,7 +33,16 @@ jobs:
         with:
           terraform_version: 1.4.0
 
-      - name: Terraform fmt (check)
+      - name: Terraform fmt (auto‑format)
+        run: terraform fmt -write=true
+
+      - name: Commit formatted files
+        if: steps.fmt.outputs.did_change == 'true'
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "chore: terraform fmt"
+
+      - name: Terraform fmt (verify)
         run: terraform fmt -check
 
       - name: Terraform init
