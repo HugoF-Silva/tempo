@@ -126,7 +126,6 @@ resource "aws_lambda_function" "broadcast" {
     variables = {
       CONNECTIONS_TABLE = aws_dynamodb_table.connections.name
       WS_API_ID         = aws_apigatewayv2_api.websocket.id
-      AWS_REGION        = var.aws_region
     }
   }
 }
