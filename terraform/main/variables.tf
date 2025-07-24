@@ -27,3 +27,15 @@ variable "bcast_lambda_role_name" {
   type        = string
   default     = "wsLambdaExecRole-bcast"
 }
+
+variable "conn_lambda_function_name" {
+  description = "Name of the existing Lambda function for $connect"
+  type        = string
+  default     = "ws_connect_handler"
+}
+
+variable "bcast_lambda_function_name" {
+  description = "Name of the existing Lambda function for broadcast"
+  type        = string
+  default     = "ws_broadcast_handler"
+}
