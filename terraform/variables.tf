@@ -13,3 +13,8 @@ variable "connections_table_name" {
   type        = string
   default     = "ws_connections"
 }
+
+variable "deployment_id" {
+  description = "Workflow trigger identifier"
+  type        = string
+}
