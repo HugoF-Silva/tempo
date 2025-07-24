@@ -113,7 +113,7 @@ data "archive_file" "broadcast" {
 }
 
 resource "aws_lambda_function" "connect" {
-  function_name    = "connect"
+  function_name    = "connect-${var.deployment_id}"
   runtime          = "nodejs18.x"
   handler          = "handler.handler"
   role             = aws_iam_role.lambda_base.arn
@@ -128,7 +128,7 @@ resource "aws_lambda_function" "connect" {
 }
 
 resource "aws_lambda_function" "disconnect" {
-  function_name    = "disconnect"
+  function_name    = "disconnect-${var.deployment_id}"
   runtime          = "nodejs18.x"
   handler          = "handler.handler"
   role             = aws_iam_role.lambda_base.arn
@@ -143,7 +143,7 @@ resource "aws_lambda_function" "disconnect" {
 }
 
 resource "aws_lambda_function" "broadcast" {
-  function_name    = "broadcast"
+  function_name    = "broadcast-${var.deployment_id}"
   runtime          = "nodejs18.x"
   handler          = "handler.handler"
   role             = aws_iam_role.broadcast_lambda_role.arn
