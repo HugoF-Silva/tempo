@@ -15,43 +15,40 @@ provider "aws" {
   region = var.aws_region
 }
 
-data "terraform_remote_state" "bootstrap" {
-  backend = "local"
-  config = {
-    path = "../bootstrap/terraform.tfstate"
-  }
-}
-
+# Pull in your _existing_ resources by name
 data "aws_dynamodb_table" "connections" {
-  name = data.terraform_remote_state.bootstrap.outputs.connections_table_name
+  name = var.connections_table_name
 }
 
 data "aws_iam_role" "conn" {
-  name = data.terraform_remote_state.bootstrap.outputs.conn_lambda_role_name
+  name = var.conn_lambda_role_name
 }
 
 data "aws_iam_role" "bcast" {
-  name = data.terraform_remote_state.bootstrap.outputs.bcast_lambda_role_name
+  name = var.bcast_lambda_role_name
 }
 
+# Create (or update) the WebSocket API
 resource "aws_apigatewayv2_api" "websocket" {
   name                       = "healthCentersWS"
   protocol_type              = "WEBSOCKET"
   route_selection_expression = "$request.body.action"
 }
 
+# Bundle Lambdas on the fly
 data "archive_file" "connect" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda/connect"
-  output_path = "${path.module}/connect.zip"
+  source_dir  = "../../lambda/connect"
+  output_path = "../../connect.zip"
 }
 
 data "archive_file" "broadcast" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda/broadcast"
-  output_path = "${path.module}/broadcast.zip"
+  source_dir  = "../../lambda/broadcast"
+  output_path = "../../broadcast.zip"
 }
 
+# $connect handler
 resource "aws_lambda_function" "connect" {
   function_name    = "ws_connect_handler"
   role             = data.aws_iam_role.conn.arn
@@ -67,6 +64,7 @@ resource "aws_lambda_function" "connect" {
   }
 }
 
+# broadcast handler
 resource "aws_lambda_function" "broadcast" {
   function_name    = "ws_broadcast_handler"
   role             = data.aws_iam_role.bcast.arn
@@ -83,4 +81,4 @@ resource "aws_lambda_function" "broadcast" {
   }
 }
 
-# …integrations, routes, stages, and CloudWatch rules go here…
+# …now add your integrations, routes, stages, CloudWatch rule, etc…
