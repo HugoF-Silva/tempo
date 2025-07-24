@@ -23,18 +23,42 @@ data "aws_iam_role" "bcast" {
   name = data.terraform_remote_state.bootstrap.outputs.bcast_lambda_role_name
 }
 
-# (your existing websocket API + integrations here…)
+# ----------------------------------------
+# Declare your WebSocket API
+# ----------------------------------------
+resource "aws_apigatewayv2_api" "websocket" {
+  name                       = "healthCentersWS"
+  protocol_type              = "WEBSOCKET"
+  route_selection_expression = "$request.body.action"
+}
 
-# when you define your Lambdas, swap in the data roles:
+# ----------------------------------------
+# Your Lambdas
+# ----------------------------------------
 resource "aws_lambda_function" "connect" {
-  # …
-  role = data.aws_iam_role.conn.arn
-  # …
+  function_name    = "ws_connect_handler"
+  role             = data.aws_iam_role.conn.arn
+  handler          = "connect.handler"
+  runtime          = var.lambda_runtime
+
+  filename         = "connect.zip"
+  source_code_hash = filebase64sha256("connect.zip")
+
+  environment {
+    variables = {
+      CONNECTIONS_TABLE = data.aws_dynamodb_table.connections.name
+    }
+  }
 }
 
 resource "aws_lambda_function" "broadcast" {
-  # …
-  role = data.aws_iam_role.bcast.arn
+  function_name    = "ws_broadcast_handler"
+  role             = data.aws_iam_role.bcast.arn
+  handler          = "broadcast.handler"
+  runtime          = var.lambda_runtime
+
+  filename         = "broadcast.zip"
+  source_code_hash = filebase64sha256("broadcast.zip")
 
   environment {
     variables = {
@@ -43,5 +67,3 @@ resource "aws_lambda_function" "broadcast" {
     }
   }
 }
-
-# (rest of your API Gateway, CloudWatch rule, etc.)
