@@ -29,19 +29,19 @@ jobs:
         run: |
           # connect
           pushd ../lambda/connect
-          npm ci --production       # install prod deps
+          npm install --production
           zip -r ../../terraform/connect.zip .
           popd
 
           # disconnect
           pushd ../lambda/disconnect
-          npm ci --production
+          npm install --production
           zip -r ../../terraform/disconnect.zip .
           popd
 
           # broadcast
           pushd ../lambda/broadcast
-          npm ci --production
+          npm install --production
           zip -r ../../terraform/broadcast.zip .
           popd
 
