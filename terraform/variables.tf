@@ -1,4 +1,3 @@
-# variables.tf
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -26,5 +25,5 @@ variable "lambda_role_name" {
 variable "cron_schedule" {
   description = "Cron expression for the diff/broadcast Lambda"
   type        = string
-  default     = "cron(0 * * * ? *)"  # every hour
+  default     = "cron(0 * * * ? *)"
 }
