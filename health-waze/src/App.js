@@ -16,15 +16,41 @@ function AppContent() {
   const [mapCenter, setMapCenter] = useState([-16.6514931, -49.3280203]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Update health centers from cron job
+  // 1) initial fetch
   useEffect(() => {
-    // This would be replaced with actual WebSocket or polling logic
-    const updateInterval = setInterval(() => {
-      // Fetch updated health center statuses
-      // setHealthCenters(updatedData);
-    }, 3600000); // Every hour
+    fetch(`${process.env.REACT_APP_API_BASE}/health-centers`)
+      .then(r => r.json())
+      .then(setHealthCenters)
+      .catch(console.error);
+  }, []);
 
-    return () => clearInterval(updateInterval);
+  // 2) open WebSocket, listen for diffs
+  useEffect(() => {
+    const socket = new WebSocket(process.env.REACT_APP_WS_URL);
+    socket.onopen = () => {
+      console.log('WebSocket open');
+      // optional: tell server “I want updates”
+      socket.send(JSON.stringify({ action: 'healthCentersSubscribe' }));
+    };
+
+    socket.onmessage = ({ data }) => {
+      const msg = JSON.parse(data);
+      if (msg.action === 'healthCentersUpdate') {
+        const changed = msg.data; // array of updated centers
+
+        setHealthCenters(prev => {
+          // merge diffs into existing list
+          const byId = new Map(prev.map(c => [c.id, c]));
+          changed.forEach(c => byId.set(c.id, c));
+          return Array.from(byId.values());
+        });
+      }
+    };
+
+    socket.onerror = console.error;
+    socket.onclose = () => console.log('WebSocket closed');
+
+    return () => socket.close();
   }, []);
 
   // Request user location
