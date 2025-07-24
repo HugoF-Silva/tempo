@@ -36,6 +36,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Install Lambda dependencies connect
+        run: |
+          cd ../lambda/connect
+          npm ci
+
+      - name: Install Lambda dependencies disconnect
+        run: |
+          cd ../lambda/disconnect
+          npm ci
+          
+      - name: Install Lambda dependencies broadcast
+        run: |
+          cd ../lambda/broadcast
+          npm ci
+      
       - name: Cache Terraform plugins
         uses: actions/cache@v3
         with:
