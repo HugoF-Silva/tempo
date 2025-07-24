@@ -96,20 +96,20 @@ resource "aws_iam_role_policy" "broadcast_policy" {
 
 data "archive_file" "connect" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/connect"
-  output_path = "${path.module}/lambda/connect.zip"
+  source_dir  = "${path.module}/../lambda/connect"
+  output_path = "${path.module}/connect.zip"
 }
 
 data "archive_file" "disconnect" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/disconnect"
-  output_path = "${path.module}/lambda/disconnect.zip"
+  source_dir  = "${path.module}/../lambda/disconnect"
+  output_path = "${path.module}/disconnect.zip"
 }
 
 data "archive_file" "broadcast" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/broadcast"
-  output_path = "${path.module}/lambda/broadcast.zip"
+  source_dir  = "${path.module}/../lambda/broadcast"
+  output_path = "${path.module}/broadcast.zip"
 }
 
 resource "aws_lambda_function" "connect" {
