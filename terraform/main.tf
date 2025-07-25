@@ -20,6 +20,14 @@ data "aws_dynamodb_table" "connections" {
   name = var.connections_table_name
 }
 
+data "aws_dynamodb_table" "snapshot" {
+  name = var.snapshot_table_name
+}
+
+data "aws_dynamodb_table" "heath_centers" {
+  name = var.health_centers_table_name
+}
+
 ########################
 # IAM Roles & Policies
 ########################
@@ -82,19 +90,34 @@ resource "aws_iam_role_policy" "broadcast_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow"
-        Action = [
+        Effect   = "Allow"
+        Action   = [
           "dynamodb:Scan",
           "dynamodb:DeleteItem"
         ]
         Resource = data.aws_dynamodb_table.connections.arn
       },
       {
-        Effect = "Allow"
-        Action = [
+        Effect   = "Allow"
+        Action   = [
           "execute-api:ManageConnections"
         ]
         Resource = "${aws_apigatewayv2_api.websocket.execution_arn}/*/@connections/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = [
+          "dynamodb:Scan"
+        ]
+        Resource = data.aws_dynamodb_table.health_centers.arn
+      },
+      {
+        Effect   = "Allow"
+        Action   = [
+          "dynamodb:Scan",
+          "dynamodb:BatchWriteItem"
+        ]
+        Resource = data.aws_dynamodb_table.snapshot.arn
       }
     ]
   })
