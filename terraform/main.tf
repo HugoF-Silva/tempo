@@ -16,7 +16,6 @@ provider "aws" {
 # Data Sources
 ########################
 
-# Reference the existing DynamoDB table
 data "aws_dynamodb_table" "connections" {
   name = var.connections_table_name
 }
@@ -25,16 +24,19 @@ data "aws_dynamodb_table" "connections" {
 # IAM Roles & Policies
 ########################
 
-# Base Lambda role (CloudWatch Logs)
 resource "aws_iam_role" "lambda_base" {
-  name = "lambda-base-execution-role-${var.deployment_id}"
+  name               = "lambda-base-execution-role-${var.deployment_id}"
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "lambda.amazonaws.com" }
-    }]
+    Version   = "2012-10-17"
+    Statement = [
+      {
+        Action    = "sts:AssumeRole"
+        Effect    = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
   })
 }
 
@@ -43,22 +45,25 @@ resource "aws_iam_role_policy_attachment" "lambda_basic_exec" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# Grant PutItem/DeleteItem against the existing connections table
 resource "aws_iam_role_policy" "dynamo_writes" {
   name = "lambda-dynamodb-access"
   role = aws_iam_role.lambda_base.id
 
   policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["dynamodb:PutItem", "dynamodb:DeleteItem"]
-      Resource = data.aws_dynamodb_table.connections.arn
-    }]
+    Version   = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem"
+        ]
+        Resource = data.aws_dynamodb_table.connections.arn
+      }
+    ]
   })
 }
 
-# Role for broadcast (needs Scan/Delete + ManageConnections)
 resource "aws_iam_role" "broadcast_lambda_role" {
   name               = "lambda-broadcast-execution-role-${var.deployment_id}"
   assume_role_policy = aws_iam_role.lambda_base.assume_role_policy
@@ -74,16 +79,21 @@ resource "aws_iam_role_policy" "broadcast_policy" {
   role = aws_iam_role.broadcast_lambda_role.id
 
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version   = "2012-10-17"
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["dynamodb:Scan", "dynamodb:DeleteItem"]
+        Action   = [
+          "dynamodb:Scan",
+          "dynamodb:DeleteItem"
+        ]
         Resource = data.aws_dynamodb_table.connections.arn
       },
       {
         Effect   = "Allow"
-        Action   = ["execute-api:ManageConnections"]
+        Action   = [
+          "execute-api:ManageConnections"
+        ]
         Resource = "${aws_apigatewayv2_api.websocket.execution_arn}/*/@connections/*"
       }
     ]
@@ -152,10 +162,10 @@ resource "aws_lambda_function" "broadcast" {
 
   environment {
     variables = {
-      CONNECTIONS_TABLE = var.connections_table_name
+      CONNECTIONS_TABLE    = var.connections_table_name
       HEALTH_CENTERS_TABLE = var.health_centers_table_name
-      SNAPSHOT_TABLE = var.snapshot_table_name
-      WS_API_ID         = aws_apigatewayv2_api.websocket.id
+      SNAPSHOT_TABLE       = var.snapshot_table_name
+      WS_API_ID            = aws_apigatewayv2_api.websocket.id
     }
   }
 }
@@ -203,7 +213,6 @@ resource "aws_apigatewayv2_stage" "prod" {
   name        = "prod"
   auto_deploy = true
 }
-
 
 ########################
 # Permissions
