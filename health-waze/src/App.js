@@ -16,6 +16,7 @@ function AppContent() {
   const [mapCenter, setMapCenter] = useState([-16.6514931, -49.3280203]);
   const [isLoading, setIsLoading] = useState(false);
 
+  
   // 1) Open WS once, subscribe, handle initial + diffs + recommendations
   useEffect(() => {
     const socket = new WebSocket(process.env.REACT_APP_WS_URL);
