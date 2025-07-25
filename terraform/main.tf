@@ -25,13 +25,13 @@ data "aws_dynamodb_table" "connections" {
 ########################
 
 resource "aws_iam_role" "lambda_base" {
-  name               = "lambda-base-execution-role-${var.deployment_id}"
+  name = "lambda-base-execution-role-${var.deployment_id}"
   assume_role_policy = jsonencode({
-    Version   = "2012-10-17"
+    Version = "2012-10-17"
     Statement = [
       {
-        Action    = "sts:AssumeRole"
-        Effect    = "Allow"
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
         Principal = {
           Service = "lambda.amazonaws.com"
         }
@@ -50,11 +50,11 @@ resource "aws_iam_role_policy" "dynamo_writes" {
   role = aws_iam_role.lambda_base.id
 
   policy = jsonencode({
-    Version   = "2012-10-17"
+    Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "dynamodb:PutItem",
           "dynamodb:DeleteItem"
         ]
@@ -79,19 +79,19 @@ resource "aws_iam_role_policy" "broadcast_policy" {
   role = aws_iam_role.broadcast_lambda_role.id
 
   policy = jsonencode({
-    Version   = "2012-10-17"
+    Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "dynamodb:Scan",
           "dynamodb:DeleteItem"
         ]
         Resource = data.aws_dynamodb_table.connections.arn
       },
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "execute-api:ManageConnections"
         ]
         Resource = "${aws_apigatewayv2_api.websocket.execution_arn}/*/@connections/*"
