@@ -70,9 +70,11 @@ jobs:
       - name: Terraform Init
         run: terraform init -input=false
 
-      - name: Terraform Format & Validate
+      - name: Terraform Fmt Check
+        run: terraform fmt -diff -check -recursive
+
+      - name: Terraform Validate
         run: |
-          terraform fmt -check -recursive
           terraform validate
 
       - name: Terraform Plan
