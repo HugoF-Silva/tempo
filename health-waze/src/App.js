@@ -50,6 +50,7 @@ function AppContent() {
           break;
 
         default:
+          console.log(msg)
           console.warn('Unknown WS action:', msg.action);
       }
     };
