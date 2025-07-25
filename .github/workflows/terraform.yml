@@ -31,6 +31,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION:            ${{ secrets.AWS_REGION }}
       TF_VAR_deployment_id: "${{ github.run_id }}"
+      TF_VAR_health_centers_table_name: "${{ secrets.HEALTH_CENTERS_TABLE}}"
+      TF_VAR_snapshot_table_name: "${{ secrets.SNAPSHOT_TABLE}}"
 
     steps:
       - name: Checkout code
