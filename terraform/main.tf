@@ -154,6 +154,8 @@ resource "aws_lambda_function" "broadcast" {
   environment {
     variables = {
       CONNECTIONS_TABLE = var.connections_table_name
+      HEALTH_CENTERS_TABLE = var.health_centers_table_name
+      SNAPSHOT_TABLE = var.snapshot_table_name
       WS_API_ID         = aws_apigatewayv2_api.websocket.id
     }
   }
