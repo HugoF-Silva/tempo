@@ -31,7 +31,6 @@ data "aws_dynamodb_table" "health_centers" {
 ########################
 # IAM Roles & Policies
 ########################
-
 resource "aws_iam_role" "lambda_base" {
   name = "lambda-base-execution-role-${var.deployment_id}"
   assume_role_policy = jsonencode({

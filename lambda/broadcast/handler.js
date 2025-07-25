@@ -23,18 +23,39 @@ async function diffDynamoAndGetChanges() {
     }
   });
 
-  // 4) Replace snapshot (delete all then batchWrite, or overwrite individually)
-  // here’s a simple full overwrite:
-  const deleteRequests = previous.map(c => ({
-    DeleteRequest: { Key: { name: c.name } }
-  }));
-  const putRequests = current.map(c => ({
-    PutRequest: { Item: c }
-  }));
-  const batch = { RequestItems: {
-    [process.env.SNAPSHOT_TABLE]: [...deleteRequests, ...putRequests]
-  }};
-  await ddb.batchWrite(batch).promise();
+  // 1. Delete all previous
+  if (previous.length > 0) {
+    const deleteBatches = [];
+    for (let i = 0; i < previous.length; i += 25) {
+      deleteBatches.push(previous.slice(i, i + 25));
+    }
+    for (const batch of deleteBatches) {
+      await ddb.batchWrite({
+        RequestItems: {
+          [process.env.SNAPSHOT_TABLE]: batch.map(c => ({
+            DeleteRequest: { Key: { name: c.name } }
+          }))
+        }
+      }).promise();
+    }
+  }
+
+  // 2. Write all current
+  if (current.length > 0) {
+    const putBatches = [];
+    for (let i = 0; i < current.length; i += 25) {
+      putBatches.push(current.slice(i, i + 25));
+    }
+    for (const batch of putBatches) {
+      await ddb.batchWrite({
+        RequestItems: {
+          [process.env.SNAPSHOT_TABLE]: batch.map(c => ({
+            PutRequest: { Item: c }
+          }))
+        }
+      }).promise();
+    }
+  }
 
   return changed;
 }
