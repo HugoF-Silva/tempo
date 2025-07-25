@@ -284,3 +284,25 @@ resource "aws_apigatewayv2_stage" "prod" {
   name        = "prod"
   auto_deploy = true
 }
+
+resource "aws_apigatewayv2_integration" "default" {
+  api_id                     = aws_apigatewayv2_api.websocket.id
+  integration_type           = "AWS_PROXY"
+  integration_uri            = aws_lambda_function.broadcast.invoke_arn   # or aws_lambda_function.default.invoke_arn
+  integration_method         = "POST"
+  payload_format_version     = "1.0"
+}
+
+resource "aws_apigatewayv2_route" "default" {
+  api_id    = aws_apigatewayv2_api.websocket.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.default.id}"
+}
+
+resource "aws_lambda_permission" "allow_apigw_default" {
+  statement_id  = "AllowAPIGWDefault"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.broadcast.function_name   # or default.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.websocket.execution_arn}/*/$default"
+}
