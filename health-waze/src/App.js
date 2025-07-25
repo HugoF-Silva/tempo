@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import HomePage from './pages/HomePage';
 import MapPage from './pages/MapPage';
 import { requestUserLocation } from './utils/location';
-// import { mockHealthCenters } from './data/healthCenters';
+import { mockHealthCenters } from './data/healthCenters';
 import './styles/global.css';
 
 function AppContent() {
