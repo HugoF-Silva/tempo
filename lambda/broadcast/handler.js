@@ -12,12 +12,12 @@ async function diffDynamoAndGetChanges() {
   ]);
 
   // 2) Map previous by id
-  const prevMap = new Map(previous.map(c => [c.id, c]));
+  const prevMap = new Map(previous.map(c => [c.name, c]));
 
   // 3) Find changed
   const changed = [];
   current.forEach(c => {
-    const prev = prevMap.get(c.id);
+    const prev = prevMap.get(c.name);
     if (!prev || prev.status !== c.status) {
       changed.push(c);
     }
@@ -26,7 +26,7 @@ async function diffDynamoAndGetChanges() {
   // 4) Replace snapshot (delete all then batchWrite, or overwrite individually)
   // here’s a simple full overwrite:
   const deleteRequests = previous.map(c => ({
-    DeleteRequest: { Key: { id: c.id } }
+    DeleteRequest: { Key: { id: c.name } }
   }));
   const putRequests = current.map(c => ({
     PutRequest: { Item: c }
@@ -53,7 +53,7 @@ async function broadcast(changedCenters) {
   }).promise();
 
   // quick map for lookup
-  const changedMap = new Map(changedCenters.map(c => [c.id, c]));
+  const changedMap = new Map(changedCenters.map(c => [c.name, c]));
 
   let payloadData;
   if (changedCenters.length === allCenters.length) {
@@ -64,10 +64,10 @@ async function broadcast(changedCenters) {
     }));
   } else {
     payloadData = allCenters.map(center => {
-      if (changedMap.has(center.id)) {
+      if (changedMap.has(center.name)) {
         // real update
         return {
-          ...changedMap.get(center.id),
+          ...changedMap.get(center.name),
           updated: true
         };
       } else {
