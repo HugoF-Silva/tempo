@@ -26,7 +26,7 @@ async function diffDynamoAndGetChanges() {
   // 4) Replace snapshot (delete all then batchWrite, or overwrite individually)
   // here’s a simple full overwrite:
   const deleteRequests = previous.map(c => ({
-    DeleteRequest: { Key: { id: c.name } }
+    DeleteRequest: { Key: { name: c.name } }
   }));
   const putRequests = current.map(c => ({
     PutRequest: { Item: c }
