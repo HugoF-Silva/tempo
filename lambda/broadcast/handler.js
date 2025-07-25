@@ -128,6 +128,41 @@ async function broadcast(changedCenters) {
 }
 
 exports.handler = async () => {
+  console.log("Received event:", JSON.stringify(event, null, 2));
+
+  // If this is an API Gateway WebSocket request (subscribe), event.requestContext.connectionId will be set
+  if (event.requestContext && event.requestContext.connectionId) {
+    // Handle as a request/response: send initial data to the single connection
+    const connectionId = event.requestContext.connectionId;
+    try {
+      const { Items: healthCenters } = await ddb.scan({
+        TableName: process.env.HEALTH_CENTERS_TABLE
+      }).promise();
+
+      await apigw.postToConnection({
+        ConnectionId: connectionId,
+        Data: JSON.stringify({
+          action: 'healthCentersInitial',
+          data: healthCenters
+        })
+      }).promise();
+
+      return { statusCode: 200 };
+    } catch (err) {
+      console.error("Error handling healthCentersSubscribe:", err);
+      try {
+        await apigw.postToConnection({
+          ConnectionId: connectionId,
+          Data: JSON.stringify({
+            action: "error",
+            message: err.message || "Internal server error"
+          })
+        }).promise();
+      } catch (e) {}
+      return { statusCode: 500, body: "Internal server error" };
+    }
+  }
+
   const changedCenters = await diffDynamoAndGetChanges();
   if (changedCenters.length) {
     await broadcast(changedCenters);
