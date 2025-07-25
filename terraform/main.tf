@@ -24,7 +24,7 @@ data "aws_dynamodb_table" "snapshot" {
   name = var.snapshot_table_name
 }
 
-data "aws_dynamodb_table" "heath_centers" {
+data "aws_dynamodb_table" "health_centers" {
   name = var.health_centers_table_name
 }
 
