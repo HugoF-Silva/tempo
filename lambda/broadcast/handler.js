@@ -127,7 +127,7 @@ async function broadcast(changedCenters) {
   ));
 }
 
-exports.handler = async () => {
+exports.handler = async (event) => {
   console.log("Received event:", JSON.stringify(event, null, 2));
 
   // If this is an API Gateway WebSocket request (subscribe), event.requestContext.connectionId will be set
