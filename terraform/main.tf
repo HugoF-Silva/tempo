@@ -181,6 +181,7 @@ resource "aws_lambda_function" "broadcast" {
   role             = aws_iam_role.broadcast_lambda_role.arn
   filename         = data.archive_file.broadcast.output_path
   source_code_hash = data.archive_file.broadcast.output_base64sha256
+  timeout          = 30
 
   environment {
     variables = {
