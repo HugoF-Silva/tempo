@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import HomePage from './pages/HomePage';
 import MapPage from './pages/MapPage';
 import { requestUserLocation } from './utils/location';
-import { mockHealthCenters } from './data/healthCenters';
 import './styles/global.css';
 
 function AppContent() {
@@ -11,7 +10,8 @@ function AppContent() {
   const socketRef = useRef(null);
   const [description, setDescription] = useState('');
   const [userLocation, setUserLocation] = useState(null);
-  const [healthCenters, setHealthCenters] = useState(mockHealthCenters);
+  const [healthCenters, setHealthCenters] = useState(null);
+  const initialLoaded = useRef(false);
   const [recommendedCenters, setRecommendedCenters] = useState([]);
   const [mapCenter, setMapCenter] = useState([-16.6514931, -49.3280203]);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,10 +36,13 @@ function AppContent() {
         // initial full list
         case 'healthCentersInitial':
           setHealthCenters(msg.data);
+          initialLoaded.current = true;
           break;
 
         // only diffs
         case 'healthCentersUpdate':
+          // ignore diffs until initial list arrives
+          if (!initialLoaded.current) return;
           setHealthCenters(prev => {
             const byId = new Map(prev.map(c => [c.id, c]));
             msg.data.forEach(c => byId.set(c.id, c));
