@@ -58,7 +58,7 @@ const HealthMap = ({
         
         {healthCenters.map(center => (
           <HealthCenterMarker
-            key={center.id}
+            key={`${center.id}-${center.status}`}
             center={center}
             isRecommended={isRecommended(center)}
             onMarkerClick={handleMarkerClick}
