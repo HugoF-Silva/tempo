@@ -1,86 +1,97 @@
-export const openNavigationApp = async (destination, userLocation) => {
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+import React from "react";
 
-  if (!isMobile) {
-    // Desktop → always Google Maps
-    return openGoogleMaps(destination, userLocation);
-  }
+const isAndroid = /Android/i.test(navigator.userAgent);
 
-  // Build the available apps list
-  const apps = [
-    { name: 'Google Maps', action: () => openGoogleMaps(destination, userLocation) },
-    { name: 'Waze',       action: () => openWaze(destination) },
-    { name: 'Uber',       action: () => openUber(destination) },
-  ];
-
-  // Show the picker and wait for the user’s choice
-  const choiceIndex = await showAppPicker(apps.map(a => a.name));
-  apps[choiceIndex].action();
-};
-
-/**
- * Displays a modal <dialog> with radio buttons for each option,
- * and resolves with the index of the selected one.
- */
-const showAppPicker = (options) => {
-  return new Promise((resolve) => {
-    // Create dialog
-    const dlg = document.createElement('dialog');
-    dlg.innerHTML = `
-      <form method="dialog" style="padding:1em;max-width:300px;">
-        <h3 style="margin-top:0;">Choose navigation app</h3>
-        ${options.map((opt, i) => `
-          <label style="display:block;margin:0.5em 0;">
-            <input
-              type="radio"
-              name="app"
-              value="${i}"
-              ${i === 0 ? 'checked' : ''}
-            /> ${opt}
-          </label>
-        `).join('')}
-        <menu style="display:flex;justify-content:flex-end;gap:0.5em;">
-          <button value="cancel" type="reset">Cancel</button>
-          <button value="confirm">OK</button>
-        </menu>
-      </form>
-    `;
-
-    document.body.appendChild(dlg);
-
-    dlg.addEventListener('close', () => {
-      const form = dlg.querySelector('form');
-      // If user clicked OK, read the checked radio; otherwise default to 0
-      const idx = form.returnValue === 'confirm'
-        ? parseInt(form.app.value, 10)
-        : 0;
-      dlg.remove();
-      resolve(idx);
-    }, { once: true });
-
-    dlg.showModal();
-  });
-};
-
-const openGoogleMaps = (destination, userLocation) => {
-  const { lat, lng } = destination;
-  let url;
+const getGoogleMapsIntent = (destination, userLocation) => {
   if (userLocation) {
-    url = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${lat},${lng}`;
-  } else {
-    url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    return `intent://maps.google.com/maps?saddr=${userLocation.lat},${userLocation.lng}&daddr=${destination.lat},${destination.lng}#Intent;package=com.google.android.apps.maps;scheme=https;end`;
   }
-  window.open(url, '_blank');
+  return `intent://maps.google.com/maps?daddr=${destination.lat},${destination.lng}#Intent;package=com.google.android.apps.maps;scheme=https;end`;
 };
 
-const openWaze = (destination) => {
-  const { lat, lng } = destination;
-  const url = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
-  window.open(url, '_blank');
+const getWazeIntent = (destination) => {
+  return `intent://waze.com/ul?ll=${destination.lat},${destination.lng}&navigate=yes#Intent;package=com.waze;scheme=https;end`;
 };
 
-const openUber = (destination) => {
-  const { lat, lng } = destination;
-  const url = `https://m.uber.com/ul/?action=setPickup&dropoff[latitude]=${lat}&dropoff[longitude]=${lng}`;
-  window.open(url, '_blank');
+const getUberIntent = (destination) => {
+  return `intent://m.uber.com/ul/?action=setPickup&dropoff[latitude]=${destination.lat}&dropoff[longitude]=${destination.lng}#Intent;package=com.ubercab;scheme=https;end`;
 };
+
+const getWebGoogleMaps = (destination, userLocation) => {
+  if (userLocation) {
+    return `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${destination.lat},${destination.lng}`;
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${destination.lat},${destination.lng}`;
+};
+
+const modalStyles = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: "rgba(0,0,0,0.5)",
+  zIndex: 9999,
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+};
+
+const dialogStyles = {
+  background: "#fff",
+  padding: 20,
+  borderRadius: 12,
+  minWidth: 280,
+  textAlign: "center",
+};
+
+export default function NavigationAppPicker({ destination, userLocation, onClose }) {
+  if (!destination) return null;
+
+  const handleAppClick = (app) => {
+    let url;
+    if (app === "google") url = getGoogleMapsIntent(destination, userLocation);
+    else if (app === "waze") url = getWazeIntent(destination);
+    else if (app === "uber") url = getUberIntent(destination);
+
+    if (isAndroid) {
+      window.location.href = url;
+    } else {
+      // fallback for non-Android
+      window.open(getWebGoogleMaps(destination, userLocation), "_blank");
+    }
+    if (onClose) onClose();
+  };
+
+  return (
+    <div style={modalStyles}>
+      <div style={dialogStyles}>
+        <div style={{ marginBottom: 16 }}>Open with:</div>
+        <button
+          style={{ display: "block", width: "100%", marginBottom: 8 }}
+          onClick={() => handleAppClick("google")}
+        >
+          Google Maps
+        </button>
+        <button
+          style={{ display: "block", width: "100%", marginBottom: 8 }}
+          onClick={() => handleAppClick("waze")}
+        >
+          Waze
+        </button>
+        <button
+          style={{ display: "block", width: "100%", marginBottom: 8 }}
+          onClick={() => handleAppClick("uber")}
+        >
+          Uber
+        </button>
+        <button
+          style={{ display: "block", width: "100%", marginTop: 12 }}
+          onClick={onClose}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}

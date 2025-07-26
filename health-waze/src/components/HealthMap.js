@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import HealthCenterMarker from './HealthCenterMarker';
 import UserLocationMarker from './UserLocationMarker';
-import { openNavigationApp } from '../utils/navigation';
+import NavigationAppPicker from './NavigationAppPicker'; // <-- import the picker
 import 'leaflet/dist/leaflet.css';
 import './HealthMap.css';
 
@@ -34,8 +34,14 @@ const HealthMap = ({
   userLocation, 
   mapCenter 
 }) => {
+  const [pickerDestination, setPickerDestination] = useState(null);
+
   const handleMarkerClick = (center) => {
-    openNavigationApp(center, userLocation);
+    setPickerDestination(center);
+  };
+
+  const handlePickerClose = () => {
+    setPickerDestination(null);
   };
 
   const isRecommended = (center) => {
@@ -70,6 +76,14 @@ const HealthMap = ({
           <UserLocationMarker location={userLocation} />
         )}
       </MapContainer>
+
+      {pickerDestination && (
+        <NavigationAppPicker
+          destination={pickerDestination}
+          userLocation={userLocation}
+          onClose={handlePickerClose}
+        />
+      )}
     </div>
   );
 };
