@@ -35,8 +35,14 @@ export function NavigationAppPicker({ destination, userLocation, onClose }) {
   };
 
   return (
-    <div className="navigation-app-picker-overlay">
-      <div className="navigation-app-picker-dialog">
+    <div
+      className="navigation-app-picker-overlay"
+      onClick={onClose}                        // ← click outside → close
+    >
+      <div
+        className="navigation-app-picker-dialog"
+        onClick={e => e.stopPropagation()}    // ← eat clicks inside
+      >
         <h3 className="navigation-app-picker-header">Open with:</h3>
         <div className="navigation-app-list">
           {apps.map((app) => (
