@@ -1,92 +1,68 @@
-import React, { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import React, { useEffect } from 'react';
+import Logo from '../components/Logo';
+import TextInput from '../components/TextInput';
+import IconButton from '../components/IconButton';
+import InfoBanner from '../components/InfoBanner';
+import HealthMap from '../components/HealthMap';
+import { RefreshIcon } from '../components/Icons';
+import './MapPage.css';
 
-// Define your status‐to‐icon mapping
-const STATUS_ICON_URLS = {
-  empty: '/icons/marker-green.png',
-  partial: '/icons/marker-yellow.png',
-  full: '/icons/marker-red.png',
-};
-
-function getStatusIcon(status) {
-  return new L.Icon({
-    iconUrl: STATUS_ICON_URLS[status] || STATUS_ICON_URLS.empty,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [0, -35],
-    shadowUrl: '/icons/marker-shadow.png',
-    shadowSize: [41, 41],
-    shadowAnchor: [12, 41],
-  });
-}
-
-// Optional: keep map view in sync if mapCenter changes
-function Recenter({ center }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center);
-  }, [center, map]);
-  return null;
-}
-
-export default function HealthMap({
+const MapPage = ({
+  description,
+  onDescriptionChange,
+  userLocation,
   healthCenters,
   recommendedCenters,
-  userLocation,
-  mapCenter
-}) {
-  const mapRef = useRef();
+  mapCenter,
+  isLoading,
+  onRefresh,
+  onLocationRequest
+}) => {
+  
+  // Request location on mount
+  useEffect(() => {
+    onLocationRequest();
+  }, [onLocationRequest]);
 
   return (
-    <MapContainer
-      center={mapCenter}
-      zoom={13}
-      style={{ height: '100%', width: '100%' }}
-      ref={mapRef}
-    >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <Recenter center={mapCenter} />
-
-      {/* Render all centers with dynamic icon based on status */}
-      {healthCenters.map(center => (
-        <Marker
-          key={`${center.id}-${center.status}`}
-          position={[center.lat, center.lng]}
-          icon={getStatusIcon(center.status)}
-        >
-          <Popup>
-            <strong>{center.name}</strong>
-            <br />
-            Status: {center.status}
-          </Popup>
-        </Marker>
-      ))}
-
-      {/* Optionally highlight recommended centers */}
-      {recommendedCenters.map(center => (
-        <Marker
-          key={`rec-${center.id}-${center.status}`}
-          position={[center.lat, center.lng]}
-          icon={getStatusIcon(center.status)}
-        >
-          <Popup>
-            <strong>Recommended: {center.name}</strong>
-          </Popup>
-        </Marker>
-      ))}
-
-      {/* Show user location if available */}
-      {userLocation && (
-        <Marker
-          key="user-location"
-          position={[userLocation.latitude, userLocation.longitude]}
-          icon={new L.Icon.Default()}
-        >
-          <Popup>You are here</Popup>
-        </Marker>
-      )}
-    </MapContainer>
+    <div className="map-page">
+      <div className="map-header">
+        <Logo size="small" />
+        
+        <div className="rewrite-section">
+          <span className="rewrite-label">rewrite (describe again)</span>
+          <div className="rewrite-input-wrapper">
+            <TextInput
+              value={description}
+              onChange={onDescriptionChange}
+              placeholder="Describe symptoms..."
+              maxLength={300}
+              variant="compact"
+            />
+            <IconButton
+              icon={<RefreshIcon />}
+              onClick={onRefresh}
+              disabled={isLoading}
+              label="Refresh recommendations"
+            />
+          </div>
+        </div>
+      </div>
+      
+      <InfoBanner>
+        <strong>Did you know?</strong> It's your right to be taken care of at 
+        the health center unit you go (Doesn't matter if they told you to go 
+        see a doctor at your neighbourhood)
+      </InfoBanner>
+      
+      <HealthMap
+        healthCenters={healthCenters}
+        recommendedCenters={recommendedCenters}
+        userLocation={userLocation}
+        mapCenter={mapCenter}
+      />
+    </div>
   );
-}
+};
+
+export default MapPage;
