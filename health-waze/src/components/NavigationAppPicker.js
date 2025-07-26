@@ -1,74 +1,43 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import './NavigationAppPicker.css';
 import { getGoogleMapsIntent, getWazeIntent, getUberIntent } from '../utils/navigation';
 import { Icons } from './Icons';
 
 export function NavigationAppPicker({ destination, userLocation, onClose }) {
-  const [showDialog, setShowDialog] = useState(true);
+  const apps = [
+    { key: 'google', label: 'Google Maps', icon: Icons.Google, handler: getGoogleMapsIntent },
+    { key: 'waze',   label: 'Waze',         icon: Icons.Waze,   handler: () => getWazeIntent(destination) },
+    { key: 'uber',   label: 'Uber',         icon: Icons.Uber,   handler: () => getUberIntent(destination) }
+  ];
 
   const handleAppClick = (app) => {
     let url;
-    if (app === 'google') url = getGoogleMapsIntent(destination, userLocation);
-    else if (app === 'waze') url = getWazeIntent(destination);
-    else if (app === 'uber') url = getUberIntent(destination);
+    if (app.key === 'google') url = app.handler(destination, userLocation);
+    else url = app.handler();
     window.location.href = url;
-    close();
-  };
-
-  const close = () => {
-    setShowDialog(false);
     onClose();
   };
 
-  if (!showDialog) return null;
-
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0,0,0,0.5)',
-        zIndex: 9999,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <div
-        style={{
-          background: '#fff',
-          padding: 20,
-          borderRadius: 12,
-          minWidth: 280,
-          textAlign: 'center',
-        }}
-      >
-        <div style={{ marginBottom: 16 }}>Open with:</div>
+    <div className="navigation-app-picker-overlay">
+      <div className="navigation-app-picker-dialog">
+        <div className="navigation-app-picker-header">Open with:</div>
+        <div className="navigation-app-list">
+          {apps.map((app) => (
+            <button
+              key={app.key}
+              className={`navigation-app-button ${app.key}`}
+              onClick={() => handleAppClick(app)}
+            >
+              <app.icon size={20} />
+              {app.label}
+            </button>
+          ))}
+        </div>
         <button
-          style={{ display: 'block', width: '100%', marginBottom: 8 }}
-          onClick={() => handleAppClick('google')}
-        >
-          Google Maps
-        </button>
-        <button
-          style={{ display: 'block', width: '100%', marginBottom: 8 }}
-          onClick={() => handleAppClick('waze')}
-        >
-          Waze
-        </button>
-        <button
-          style={{ display: 'block', width: '100%', marginBottom: 8 }}
-          onClick={() => handleAppClick('uber')}
-        >
-          Uber
-        </button>
-        <button
-          style={{ display: 'block', width: '100%', marginTop: 12 }}
-          onClick={close}
+          className="navigation-app-button navigation-app-cancel"
+          onClick={onClose}
         >
           Cancel
         </button>
@@ -76,3 +45,9 @@ export function NavigationAppPicker({ destination, userLocation, onClose }) {
     </div>
   );
 }
+
+NavigationAppPicker.propTypes = {
+  destination: PropTypes.shape({ lat: PropTypes.number, lng: PropTypes.number }).isRequired,
+  userLocation: PropTypes.shape({ lat: PropTypes.number, lng: PropTypes.number }),
+  onClose: PropTypes.func.isRequired,
+};
