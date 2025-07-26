@@ -1,0 +1,84 @@
+.navigation-app-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.navigation-app-picker-dialog {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  min-width: 320px;
+  max-width: 90%;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  transform: translateY(-10px);
+  animation: fadeIn 0.4s var(--transition-fast) both;
+}
+
+.navigation-app-picker-header {
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+}
+
+.navigation-app-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.navigation-app-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  cursor: pointer;
+}
+
+/* Individual gradients */
+.navigation-app-button.google {
+  background: linear-gradient(135deg, #065952 0%, #0ACCB1 100%);
+}
+
+.navigation-app-button.waze {
+  background: linear-gradient(135deg, #025D54 0%, #0ACCB1 100%);
+}
+
+.navigation-app-button.uber {
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+}
+
+.navigation-app-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.navigation-app-button:active {
+  transform: scale(0.98);
+}
+
+.navigation-app-cancel {
+  margin-top: 1rem;
+  background: transparent;
+  color: var(--color-primary-dark);
+  border: 2px solid var(--color-primary);
+}
+
+.navigation-app-cancel:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
