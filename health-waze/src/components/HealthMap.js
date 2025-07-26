@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import HealthCenterMarker from './HealthCenterMarker';
 import UserLocationMarker from './UserLocationMarker';
-import NavigationAppPicker from './NavigationAppPicker'; // <-- import the picker
+import NavigationAppPicker from '../utils/navigation.js'; // <-- import the picker
 import 'leaflet/dist/leaflet.css';
 import './HealthMap.css';
 
