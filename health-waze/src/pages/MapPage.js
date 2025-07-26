@@ -25,6 +25,18 @@ const MapPage = ({
   }, [onLocationRequest]);
   console.log(`MapPage.js ${healthCenters}`)
 
+  if (healthCenters === null) {
+    return (
+      <div className="map-page map-loading">
+        <InfoBanner>
+          Loading health centers…
+        </InfoBanner>
+      </div>
+    );
+  }
+
+  console.log(`MapPage.js`, healthCenters);
+
   return (
     <div className="map-page">
       <div className="map-header">
