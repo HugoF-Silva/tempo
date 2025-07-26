@@ -23,6 +23,7 @@ const MapPage = ({
   useEffect(() => {
     onLocationRequest();
   }, [onLocationRequest]);
+  console.log(`MapPage.js ${healthCenters}`)
 
   return (
     <div className="map-page">

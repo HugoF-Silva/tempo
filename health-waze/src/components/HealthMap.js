@@ -41,6 +41,7 @@ const HealthMap = ({
   const isRecommended = (center) => {
     return recommendedCenters.some(r => r.id === center.id);
   };
+  console.log(`HealthMap.js ${healthCenters}`)
 
   return (
     <div className="map-container">
