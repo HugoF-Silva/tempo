@@ -23,12 +23,14 @@ function AppContent() {
     socketRef.current = socket;
 
     socket.onopen = () => {
-      console.log('WebSocket open, requesting initial data');
+      console.log('WebSocket open, requesting initial data (healthCentersSubscribe');
       socket.send(JSON.stringify({ action: 'healthCentersSubscribe' }));
     };
 
     socket.onmessage = ({ data }) => {
       const msg = JSON.parse(data);
+      console.log(msg)
+
       switch (msg.action) {
 
         // initial full list
