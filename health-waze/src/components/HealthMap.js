@@ -4,7 +4,7 @@ import HealthCenterMarker from './HealthCenterMarker';
 import UserLocationMarker from './UserLocationMarker';
 // Remove old openNavigationApp import
 // import { openNavigationApp } from '../utils/navigation';
-import { NavigationAppPicker } from '../utils/navigation';
+import { NavigationAppPicker } from './NavigationAppPicker';
 import 'leaflet/dist/leaflet.css';
 import './HealthMap.css';
 
