@@ -1,6 +1,3 @@
-// utils/navigation.js
-import React, { useState } from 'react';
-
 // Android detection
 export const isAndroid = /Android/i.test(navigator.userAgent);
 
