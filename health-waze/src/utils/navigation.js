@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 const isAndroid = /Android/i.test(navigator.userAgent);
 
@@ -24,74 +24,81 @@ const getWebGoogleMaps = (destination, userLocation) => {
   return `https://www.google.com/maps/search/?api=1&query=${destination.lat},${destination.lng}`;
 };
 
-const modalStyles = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  background: "rgba(0,0,0,0.5)",
-  zIndex: 9999,
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-};
+export function NavigationAppPicker({ destination, userLocation }) {
+  const [showDialog, setShowDialog] = useState(false);
 
-const dialogStyles = {
-  background: "#fff",
-  padding: 20,
-  borderRadius: 12,
-  minWidth: 280,
-  textAlign: "center",
-};
-
-export default function NavigationAppPicker({ destination, userLocation, onClose }) {
-  if (!destination) return null;
+  const handleOpen = () => {
+    if (isAndroid) {
+      setShowDialog(true);
+    } else {
+      window.open(getWebGoogleMaps(destination, userLocation), "_blank");
+    }
+  };
 
   const handleAppClick = (app) => {
     let url;
     if (app === "google") url = getGoogleMapsIntent(destination, userLocation);
     else if (app === "waze") url = getWazeIntent(destination);
     else if (app === "uber") url = getUberIntent(destination);
-
-    if (isAndroid) {
-      window.location.href = url;
-    } else {
-      // fallback for non-Android
-      window.open(getWebGoogleMaps(destination, userLocation), "_blank");
-    }
-    if (onClose) onClose();
+    window.location.href = url;
+    setShowDialog(false);
   };
 
   return (
-    <div style={modalStyles}>
-      <div style={dialogStyles}>
-        <div style={{ marginBottom: 16 }}>Open with:</div>
-        <button
-          style={{ display: "block", width: "100%", marginBottom: 8 }}
-          onClick={() => handleAppClick("google")}
+    <>
+      <button onClick={handleOpen}>Navigate</button>
+      {showDialog && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 9999,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
         >
-          Google Maps
-        </button>
-        <button
-          style={{ display: "block", width: "100%", marginBottom: 8 }}
-          onClick={() => handleAppClick("waze")}
-        >
-          Waze
-        </button>
-        <button
-          style={{ display: "block", width: "100%", marginBottom: 8 }}
-          onClick={() => handleAppClick("uber")}
-        >
-          Uber
-        </button>
-        <button
-          style={{ display: "block", width: "100%", marginTop: 12 }}
-          onClick={onClose}
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+          <div
+            style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 12,
+              minWidth: 280,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ marginBottom: 16 }}>Open with:</div>
+            <button
+              style={{ display: "block", width: "100%", marginBottom: 8 }}
+              onClick={() => handleAppClick("google")}
+            >
+              Google Maps
+            </button>
+            <button
+              style={{ display: "block", width: "100%", marginBottom: 8 }}
+              onClick={() => handleAppClick("waze")}
+            >
+              Waze
+            </button>
+            <button
+              style={{ display: "block", width: "100%", marginBottom: 8 }}
+              onClick={() => handleAppClick("uber")}
+            >
+              Uber
+            </button>
+            <button
+              style={{ display: "block", width: "100%", marginTop: 12 }}
+              onClick={() => setShowDialog(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
