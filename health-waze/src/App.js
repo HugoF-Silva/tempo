@@ -44,8 +44,8 @@ function AppContent() {
           // ignore diffs until initial list arrives
           if (!initialLoaded.current) return;
           setHealthCenters(prev => {
-            const byId = new Map(prev.map(c => [c.id, c]));
-            msg.data.forEach(c => byId.set(c.id, c));
+            const byId = new Map(prev.map(c => [c.name, c]));
+            msg.data.forEach(c => byId.set(c.name, c));
             return Array.from(byId.values());
           });
           break;
