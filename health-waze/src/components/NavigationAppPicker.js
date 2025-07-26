@@ -2,13 +2,13 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import './NavigationAppPicker.css';
 import { getGoogleMapsIntent, getWazeIntent, getUberIntent } from '../utils/navigation';
-import { Icons } from './Icons';
+import { GoogleIcon, WazeIcon, UberIcon } from './Icons';
 
 export function NavigationAppPicker({ destination, userLocation, onClose }) {
   const apps = [
-    { key: 'google', label: 'Google Maps', icon: Icons.Google, handler: getGoogleMapsIntent },
-    { key: 'waze',   label: 'Waze',         icon: Icons.Waze,   handler: () => getWazeIntent(destination) },
-    { key: 'uber',   label: 'Uber',         icon: Icons.Uber,   handler: () => getUberIntent(destination) }
+    { key: 'google', label: 'Google Maps', icon: GoogleIcon, handler: getGoogleMapsIntent },
+    { key: 'waze',   label: 'Waze',         icon: WazeIcon,   handler: () => getWazeIntent(destination) },
+    { key: 'uber',   label: 'Uber',         icon: UberIcon,   handler: () => getUberIntent(destination) }
   ];
 
   const handleAppClick = (app) => {
