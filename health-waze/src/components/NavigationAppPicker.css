@@ -1,47 +1,60 @@
-/* MOBILE-FIRST STYLES */
+/* Overlay stays full-screen */
 .navigation-app-picker-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   z-index: 9999;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-end;  /* align dialog to bottom */
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Bottom-sheet style dialog */
 .navigation-app-picker-dialog {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: 80vh;
   background: #fff;
-  padding: 1rem;
-  border-radius: var(--radius-md);
-  min-width: 0;
-  width: 92vw;
-  max-width: 400px;
+  padding: 1rem 1rem env(safe-area-inset-bottom) 1rem; /* support iOS notch */
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+  transform: translateY(100%);
+  animation: slideUp 0.4s var(--transition-fast) forwards;
   text-align: center;
-  transform: translateY(-8px);
-  animation: fadeIn 0.4s var(--transition-fast) both;
 }
 
+/* Slide-up keyframes */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* Header */
 .navigation-app-picker-header {
   margin-bottom: 0.75rem;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--color-primary-dark);
 }
 
+/* List of apps: full-width buttons, stacked */
 .navigation-app-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
+/* Buttons span full width for big touch targets */
 .navigation-app-button {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.5rem;
-  padding: 0.65rem 0.9rem;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
   border: none;
   border-radius: var(--radius-md);
   color: #fff;
@@ -51,69 +64,45 @@
   cursor: pointer;
 }
 
+/* Standard icon size */
 .navigation-app-button img {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
-.navigation-app-button.google,
-.navigation-app-button.waze,
-.navigation-app-button.uber {
-  background: var(--color-primary);
-}
+/* App-specific colors */
+.navigation-app-button.google { background: #4285F4; }
+.navigation-app-button.waze   { background: #33CCFF; }
+.navigation-app-button.uber   { background: #000; }
 
+/* Tap feedback */
 .navigation-app-button:hover {
-  transform: translateY(-1.5px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
-
 .navigation-app-button:active {
   transform: scale(0.98);
 }
 
+/* Cancel as a separate full-width button */
 .navigation-app-cancel {
-  margin-top: 0.8rem;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
   background: transparent;
   color: var(--color-primary-dark);
   border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
-
 .navigation-app-cancel:hover {
   background: var(--color-primary);
   color: #fff;
 }
 
-/* DESKTOP/TABLET ENHANCEMENTS */
-@media (min-width: 600px) {
-  .navigation-app-picker-dialog {
-    padding: 1.5rem;
-    border-radius: var(--radius-lg);
-    min-width: 320px;
-    max-width: 90%;
-    width: auto;
-    font-size: 1.125rem;
-  }
-
-  .navigation-app-picker-header {
-    font-size: 1.125rem;
-    margin-bottom: 1rem;
-  }
-
-  .navigation-app-list {
-    gap: 0.75rem;
-  }
-
-  .navigation-app-button {
-    font-size: 1.1rem;
-    padding: 0.75rem 1rem;
-    gap: 0.75rem;
-  }
-
-  .navigation-app-button img {
-    width: 24px;
-    height: 24px;
-  }
-  .navigation-app-cancel {
-    margin-top: 1rem;
-  }
+/* Fade-in for overlay */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
