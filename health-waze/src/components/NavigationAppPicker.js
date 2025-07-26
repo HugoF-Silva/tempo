@@ -56,12 +56,6 @@ export function NavigationAppPicker({ destination, userLocation, onClose }) {
             </button>
           ))}
         </div>
-        <button
-          className="navigation-app-button navigation-app-cancel"
-          onClick={onClose}
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );
