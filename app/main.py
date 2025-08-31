@@ -13,6 +13,7 @@ import httpx
 from jose import jwt
 
 app = FastAPI()
+
 datastore = DataStore()
 estimator = WaitTimeEstimator(datastore)
 adminconfig = AdminConfig()
@@ -27,7 +28,6 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://tempo-flax-kappa.vercel.app",   # Your Vercel app
-        "https://n8n.mttvps.shop",            # Your n8n cloud/server
     ],
     allow_methods=["*"],
     allow_headers=["*"],
